@@ -1,7 +1,8 @@
-# wordle-solver
-A python program that can solve Classic Wordle and many of its variants.
+# Wordle Solver
+A python program that can solve the Wordle word-guessing game and many of its variants.
 
-# usage
+## Usage
+```
 wordle_solver.py [-h] [-n N] [-hard | -master | -liar] [-auto WEBSITE | -sim MAX_SIMS] [-continue LIMIT | -endless | -challenge] [-best] [-start WORD [WORD ...]]
 
 Solve a Wordle game on one board or multiple by calculating the best guesses at every step.
@@ -20,3 +21,4 @@ optional arguments:
   -best                 set this flag to generate a minimal guess tree (be aware that this process may be very slow)
   -start WORD [WORD ...]
                         set this flag if there are certain words you want to start with regardless of the response
+```

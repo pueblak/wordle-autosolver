@@ -1,20 +1,22 @@
-from math import ceil
 import os
 import time
 from argparse import ArgumentParser
-from math import log2
+from itertools import combinations
+from math import ceil, log2
 from random import sample, shuffle
 
 from json import load, dump
 from tqdm import tqdm
 
-is_ms_os = os.name == 'nt'
-
-if is_ms_os:
+try:
     from selenium import webdriver
     from selenium.webdriver.common.by import By
     from selenium.webdriver.common.keys import Keys
+except ImportError:
+    print('Failed to import selenium.\n')
 
+
+is_ms_os = os.name == 'nt'
 
 RIGHT = 'O'
 CLOSE = 'H'
@@ -34,84 +36,29 @@ worst_answers = [
     'fuzzy', 'epoxy', 'nymph', 'cynic', 'boozy', 'vivid', 'depot', 'movie',
     'their', 'aroma', 'allow', 'tacit', 'swill', 'ferry', 'forgo', 'fewer',
     'lowly', 'foyer', 'flair', 'foray', 'snout', 'bunny', 'hunky', 'funny',
-    'boxer', 'baker', 'place', 'fluff'
+    'boxer', 'baker', 'booby', 'place', 'dizzy', 'fluff'
 ]
 best_starters = [
-    'riles', 'aides', 'earls', 'lores', 'nears', 'lanes', 'tales', 'snare',
-    'saner', 'arose', 'earns', 'stare', 'tares', 'antes', 'snore', 'aisle',
-    'stale', 'scare', 'races', 'acres', 'cares', 'reins', 'oases', 'hears',
-    'hares', 'tones', 'canes', 'loser', 'laser', 'siren', 'tries', 'laces',
-    'lures', 'arise', 'cries', 'cores', 'rents', 'sepia', 'holes', 'reads',
-    'dares', 'dears', 'dates', 'stead', 'sated', 'ureas', 'cones', 'lyres',
-    'leans', 'rails', 'liars', 'aegis', 'deans', 'lairs', 'stole', 'gears',
-    'rages', 'solar', 'manes', 'spare', 'deals', 'stern', 'sedan', 'pears',
-    'runes', 'mares', 'rapes', 'reams', 'reaps', 'smear', 'gates', 'shear',
-    'panes', 'hires', 'shire', 'napes', 'tiles', 'bears', 'saber', 'bares',
-    'shore', 'males', 'hates', 'gales', 'tames', 'heros', 'tapes', 'pales',
-    'cages', 'tiers', 'moles', 'poles', 'lopes', 'spate', 'banes', 'nodes',
-    'shade', 'rides', 'raids', 'dries', 'sonar', 'sired', 'fears', 'safer',
-    'fares', 'dotes', 'snarl', 'paste', 'bates', 'ropes', 'pores', 'spore',
-    'mores', 'spire', 'rakes', 'pries', 'bales', 'ables', 'leaps', 'tines',
-    'oiler', 'sepal', 'onset', 'saute', 'roads', 'lapse', 'loris', 'roils',
-    'codes', 'tomes', 'maces', 'orate', 'aches', 'peats', 'rains', 'cures',
-    'fates', 'swear', 'wears', 'wares', 'goers', 'ogres', 'gores', 'paces',
-    'capes', 'nerds', 'skier', 'rends', 'lobes', 'lakes', 'bones', 'meals',
-    'stake', 'caste', 'skate', 'lends', 'swale', 'beats', 'leash', 'heals',
-    'lutes', 'wanes', 'bores', 'robes', 'cafes', 'slide', 'idles', 'cites',
-    'delis', 'stair', 'serif', 'fires', 'fries', 'tunes', 'teams', 'meats',
-    'beans', 'spade', 'poser', 'dames', 'copes', 'saver', 'islet', 'raves',
-    'mines', 'roast', 'wires', 'piers', 'heats', 'haste', 'orcas', 'weans',
-    'feats', 'beast', 'leafs', 'alert', 'parse', 'slope', 'irate', 'alter',
-    'beads', 'baste', 'lords', 'snake', 'toads', 'vanes', 'darts', 'sited',
-    'loans', 'salon', 'tides', 'poise', 'scape', 'tends', 'biles', 'dents',
-    'sears', 'rears', 'mites', 'gapes', 'leaks', 'arson', 'hairs', 'loads',
-    'mages', 'stave', 'renal', 'laves', 'salve', 'spiel', 'piles', 'loner',
-    'sower', 'rants', 'smote', 'yokes', 'snide', 'pesto', 'dines', 'clues',
-    'axles', 'risen', 'ferns', 'resin', 'dices', 'voles', 'fades', 'loves',
-    'taxes', 'feast', 'servo', 'cakes', 'overs', 'opera', 'smite', 'kerns',
-    'pines', 'slime', 'scone', 'edits', 'alien', 'asset', 'ratio', 'urges',
-    'louse', 'stoke', 'pause', 'votes', 'zeros', 'atone', 'oasis', 'pelts',
-    'soles', 'loses', 'cokes', 'likes', 'zones', 'pyres', 'sixer', 'pleas',
-    'treks', 'stove', 'serum', 'relit', 'sires', 'rises', 'pairs', 'hopes',
-    'super', 'wrens', 'liter', 'crest', 'oaken', 'bites', 'homes', 'caves',
-    'asker', 'amuse', 'fames', 'inset', 'melts', 'leant', 'unset', 'files',
-    'domes', 'demos', 'suite', 'flies', 'modes', 'jeans', 'suave', 'heaps',
-    'dials', 'urate', 'kites', 'duels', 'wades', 'kites', 'urate', 'sawed',
-    'yikes', 'duels', 'seats', 'sores', 'frets', 'teats', 'solve', 'rebus',
-    'leers', 'fines', 'reels', 'coats', 'shave', 'wages', 'roams', 'coals',
-    'tacos', 'noses', 'boars', 'bytes', 'staid', 'nudes', 'dunes', 'codas',
-    'noirs', 'irons', 'cents', 'hazes', 'coves', 'belts', 'peons', 'tails',
-    'liner', 'shred', 'herds', 'totes', 'shied', 'hides', 'easel', 'spine',
-    'bodes', 'snipe', 'gents', 'trays', 'duets', 'strew', 'sinew', 'cards',
-    'beams', 'wines', 'bakes', 'nosey', 'welts', 'dimes', 'shoal', 'halos',
-    'lease', 'gyres', 'peaks', 'ashen', 'aimer', 'tease', 'cameo', 'pokes',
-    'sweat', 'ashes', 'shake', 'fleas', 'adore', 'greys', 'oared', 'mopes',
-    'chase', 'felts', 'glues', 'fairs', 'lefts', 'nails', 'snail', 'slain',
-    'miser', 'aider', 'nosed', 'yetis', 'aired', 'sneer', 'penis', 'shine',
-    'veils', 'wrest', 'slant', 'jades', 'heist', 'mules', 'fakes', 'carts',
-    'yarns', 'opals', 'shard', 'snort', 'ailed', 'lands', 'meson', 'mends',
-    'slept', 'crews', 'screw', 'spelt', 'melds', 'herbs', 'preys', 'beaks',
-    'gazes', 'acids', 'swine', 'spied', 'idols', 'petal', 'leapt', 'posed',
-    'feist', 'wiser', 'spine', 'snipe', 'gents', 'easel', 'duets', 'strew',
-    'trays', 'beams', 'cards', 'sinew', 'wines', 'nosey', 'bakes', 'welts',
-    'shoal', 'dimes', 'halos', 'lease', 'gyres', 'cameo', 'aimer', 'tease',
-    'peaks', 'ashen', 'pokes', 'sweat', 'ashes', 'greys', 'shake', 'adore',
-    'fleas', 'oared', 'mopes', 'chase', 'lefts', 'fairs', 'felts', 'glues',
-    'slain', 'miser', 'nails', 'snail', 'nosed', 'aired', 'aider', 'yetis',
-    'sneer', 'shine', 'wrest', 'jades', 'penis', 'veils', 'slant', 'heist',
-    'mules', 'yarns', 'carts', 'fakes', 'ailed', 'snort', 'shard', 'opals',
-    'lands', 'meson', 'mends', 'crews', 'spelt', 'slept', 'screw', 'herbs',
-    'melds', 'beaks', 'gazes', 'acids', 'spied', 'idols', 'petal', 'posed',
-    'leapt', 'feist', 'isles', 'wiser', 'cased', 'foals', 'sleet', 'caret',
-    'babes', 'cater', 'react', 'mason', 'trace', 'bases', 'vices', 'lathe',
-    'hoses', 'yards', 'bikes', 'shoes', 'mesas', 'larks', 'seams', 'cords',
-    'scent', 'maids', 'motel', 'realm', 'traps', 'smart', 'strap', 'brats',
-    'tarps', 'trams', 'lance', 'askew', 'laker', 'roars', 'soars', 'pikes',
-    'cubes', 'canoe', 'noose', 'spike', 'scree', 'faxes', 'cress', 'corns',
-    'taper', 'mails', 'pails', 'perks', 'doses', 'intel', 'inlet', 'scald',
-    'salty', 'helms', 'shrew', 'morel', 'wipes', 'swipe', 'teens', 'safes',
-    'opens', 'adobe', 'abode', 'alike', 'ulnas', 'auger', 'torus', 'soapy',
-    'shove', 'trial', 'pleat', 'tours', 'regal', 'glare', 'lager'
+    'adobe', 'shave', 'spine', 'shore', 'salve', 'trial', 'snide', 'snare',
+    'sweat', 'shade', 'soapy', 'smite', 'wiser', 'resin', 'scree', 'sonar',
+    'realm', 'lance', 'opera', 'sower', 'ashen', 'atone', 'chase', 'snore',
+    'spelt', 'cater', 'shine', 'serif', 'slept', 'suave', 'serum', 'alien',
+    'ratio', 'adore', 'louse', 'torus', 'arose', 'slain', 'askew', 'snail',
+    'cameo', 'petal', 'beast', 'solve', 'liner', 'salty', 'feast', 'paste',
+    'swear', 'renal', 'nosey', 'tease', 'skate', 'mason', 'slime', 'poise',
+    'lease', 'caste', 'scare', 'islet', 'stole', 'noose', 'rebus', 'lathe',
+    'leapt', 'solar', 'swine', 'stead', 'onset', 'miser', 'oaken', 'lager',
+    'snarl', 'smart', 'baste', 'snort', 'alike', 'pesto', 'stare', 'inlet',
+    'spiel', 'siren', 'cress', 'loser', 'amuse', 'staid', 'canoe', 'spade',
+    'crest', 'skier', 'sneer', 'aisle', 'scald', 'abode', 'slope', 'alert',
+    'stake', 'aider', 'snipe', 'shard', 'spire', 'arson', 'slant', 'glare',
+    'spare', 'lapse', 'sinew', 'sepia', 'spike', 'taper', 'alter', 'scent',
+    'smote', 'saute', 'easel', 'pause', 'shake', 'roast', 'parse', 'arise',
+    'spied', 'suite', 'shrew', 'heist', 'shire', 'asset', 'saner', 'safer',
+    'strap', 'motel', 'stoke', 'stern', 'stave', 'sedan', 'smear', 'slide',
+    'risen', 'haste', 'shear', 'super', 'react', 'salon', 'leant', 'screw',
+    'spore', 'regal', 'leash', 'stair', 'poser', 'sleet', 'irate', 'unset',
+    'trace', 'scone', 'shoal', 'shied', 'stale', 'pleat', 'snake', 'stove'
 ]
 
 
@@ -359,21 +306,24 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
     subtree = [saved_best for _ in range(num_boards)]
     actual_best = sample(best_starters, 1)[0]
     if allow_print:
-        print("\nSuggested starting word is '{}'\n".format(actual_best))
+        print(
+            "\nSuggested starting word is {}\n".format(actual_best.upper()))
     while any(len(r) > 1 for r in remaining):
         if num_boards > 1 and allow_print:
-            print("\nSolved {:>2d}/{:<2d} boards: {}".format(solve_count,
-                                                             num_boards,
-                                                             solved))
+            print("\nSolved {:>2d}/{:<2d} boards: {}".format(
+                solve_count, num_boards, ', '.join(solved).upper()))
         if any(x not in entered for x in starting_guesses):
             for guess in starting_guesses:
                 if guess not in entered:
                     actual_best = guess
                     if allow_print:
-                        print("  Predetermined guess is '{}'\n".format(guess))
+                        print(
+                            "  Predetermined guess is {}\n".format(
+                                guess.upper()))
                     break
         elif allow_print:
-            print("\n  Your next guess should be '{}'\n".format(actual_best))
+            print("\n  Your next guess should be {}\n".format(
+                actual_best.upper()))
         guess = auto_guess(remaining, guesses, actual_best, hard, master)
         entered.append(guess)
         best = [[] for _ in range(num_boards)]
@@ -425,9 +375,9 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                 solved[board] = solution
                 solve_count += 1
                 if allow_print:
-                    print("\n    The answer{} is '{}'\n".format(
+                    print("\n    The answer{} is {}\n".format(
                           '' if num_boards == 1 else
-                          (' on board ' + str(board + 1)), solution))
+                          (' on board ' + str(board + 1)), solution.upper()))
             elif (auto_response != simulated_response or
                     all(guess in entered for guess in starting_guesses)):
                 # update tree with best guesses if the game is still unsolved
@@ -439,7 +389,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                         resp = get_response(entry, rem[0], False)
                         subset = filter_remaining(subset, entry, resp, False)
                 best[board] = best_guesses(rem, subset, master=master,
-                                           show=allow_print)
+                                           show=allow_print)[:32]
                 for best_guess in best[board]:
                     if best_guess not in subtree[board]:
                         subtree[board][best_guess] = {}
@@ -449,10 +399,12 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                     print('  Best guess(es){}: {}'.format(
                         '' if num_boards == 1 else
                         (' on board ' + str(board + 1)),
-                        (str((best[board])[:8])[1:-1] +
-                         ('' if len(best[board]) <= 8 else ', ...'))))
+                        (', '.join(best[board][:8]).upper() +
+                            ('' if len(best[board]) <= 8 else ', ...'))
+                        ))
                     print('  {} possible answers{}'.format(len(rem),
-                          (': ' + str(rem)[1:-1]) if (len(rem) <= 9) else ''))
+                          (': ' + str(', '.join(rem)).upper())
+                           if (len(rem) <= 9) else ''))
             remaining[board] = rem
         # make sure to guess any answers which have been found but not entered
         unentered_answers = (set(solved) & set(answers)) - set(entered)
@@ -504,20 +456,20 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
         for index, answer in enumerate(solved):
             if answer not in unentered_answers:
                 if allow_print:
-                    print("  Entered  {:>4d}/{:<4d} '{}'".format(
-                        index + 1, len(remaining), answer
+                    print('  Entered  {:>4d}/{:<4d} {}'.format(
+                        index + 1, len(remaining), answer.upper()
                     ))
                 continue
             if allow_print:
-                print("  Entering {:>4d}/{:<4d} '{}'".format(
-                    index + 1, len(remaining), answer
+                print('  Entering {:>4d}/{:<4d} {}'.format(
+                    index + 1, len(remaining), answer.upper()
                 ))
             auto_guess(remaining, guesses, answer, hard, master)
             entered.append(answer)
     if len(solved) > 4 and auto_guess == manual_guess and allow_print:
         for index, answer in enumerate(solved):
             print("{:>4d}. {}".format(index + 1, answer))
-    return num_boards + 5 - len(entered)
+    return solved, entered
 
 
 ###############################################################################
@@ -575,18 +527,20 @@ def simulate(saved, freq, guesses, answers, start, num_games, hard, master,
     global simulated_answers
     generated = []
     if num_games == 1:
-        if total_sims < len(generated):
+        if total_sims < len(answers):
             generated = answers[:]
             shuffle(generated)
             generated = generated[:total_sims]
         else:
             generated += worst_answers
             generated += [ans for ans in answers if ans not in worst_answers]
-    else:
+    elif total_sims < len(answers)**num_games:
         while len(generated) < total_sims:
             answer_list = ','.join(sample(answers, num_games))
             if answer_list not in generated:
                 generated.append(answer_list)
+    else:
+        generated = [','.join(c) for c in combinations(answers, num_games)]
     scores = {}
     failures = []
     starting = str(start)[1:-1]
@@ -596,9 +550,12 @@ def simulate(saved, freq, guesses, answers, start, num_games, hard, master,
     for answer_list in tqdm(generated, ascii=progress,
                             leave=False, disable=not show):
         simulated_answers = answer_list.split(',')
-        score = solve_wordle(saved, freq, guesses, answers, start,
-                             num_games, hard, master, liar,
-                             simulated_guess, simulated_response)
+        solved, entered = solve_wordle(saved, freq, guesses, answers, start,
+                                       num_games, hard, master, liar,
+                                       simulated_guess, simulated_response)
+        score = -8
+        if solved == simulated_answers:
+            score = num_games + 5 - len(entered)
         if score < best and not show:
             return score, score
         if score not in scores:
@@ -642,6 +599,12 @@ def open_website(website, num_boards=1, master=False, endless=False):
         website += '?mode=' + ('free' if endless else 'daily')
     elif 'quordle' in website and endless:
         website += 'practice'
+    elif 'nordle' in website:
+        website += str(num_boards)
+    # # # CURRENTLY NOT WORKING -- ENDLESS WORDLE WILL DEFAULT TO DAILY WORDLE
+    # elif 'wordle' in website and endless:
+    #     website = 'https://devbanana.itch.io/infinidle'
+    # # #
     driver.get(website)
     print("Connected to '{}'.".format(website))
     time.sleep(5)
@@ -653,6 +616,11 @@ def open_website(website, num_boards=1, master=False, endless=False):
         driver.switch_to.frame(iframe)
         driver.find_element(value='free' if endless else 'daily').click()
         time.sleep(2)
+    elif 'infinidle' in website:
+        driver.find_element(By.CLASS_NAME, 'load_iframe_btn').click()
+        time.sleep(3)
+        iframe = driver.find_element(by=By.XPATH, value='//*[@id="game_drop"]')
+        driver.switch_to.frame(iframe)
     return num_boards
 
 
@@ -874,16 +842,17 @@ def auto_response_nordle(guess, remaining, entered, expected, hard, master):
 
 
 def auto_guess_wordle(remaining, guesses, best, hard, master):
-    time.sleep(3)
-    # game_app = driver.find_element(by=By.TAG_NAME, value='game-app')
-    # root = game_app.shadow_root
-    for modal in driver.find_elements(by=By.TAG_NAME, value='game-modal'):
+    global dialog_closed
+    time.sleep(1)
+    if not dialog_closed:
+        game_app = driver.find_element(by=By.TAG_NAME, value='game-app')
+        root = game_app.shadow_root
+        modal = root.find_element(By.CSS_SELECTOR, '#game > game-modal')
         root = modal.shadow_root
-        for icon in modal.find_elements(by=By.TAG_NAME, value='game-icon'):
-            if icon.get_attribute('icon') == 'close':
-                icon.click()
-                time.sleep(1.5)
-                break
+        icon = root.find_element(By.CSS_SELECTOR, 'div > div > div')
+        icon.click()
+        dialog_closed = True
+        time.sleep(1.5)
     webpage = driver.find_element(by=By.TAG_NAME, value='html')
     webpage.send_keys(best)
     webpage.send_keys(Keys.ENTER)
@@ -895,13 +864,12 @@ def auto_response_wordle(guess, remaining, entered, expected, hard, master):
     response = ''
     game_app = driver.find_element(by=By.TAG_NAME, value='game-app')
     root = game_app.shadow_root
-    game_rows = root.find_elements(by=By.TAG_NAME, value='game-row')
-    for game_row in game_rows:
-        print(game_row.get_attribute('letters'))
+    board = root.find_element(By.CSS_SELECTOR, '#board')
+    for game_row in board.find_elements(By.TAG_NAME, 'game-row'):
         if game_row.get_attribute('letters') == guess:
             root = game_row.shadow_root
             break
-    row = root.find_element(by=By.CLASS_NAME, value='row')
+    row = root.find_element(by=By.CSS_SELECTOR, value='div')
     for tile in row.find_elements(by=By.TAG_NAME, value='game-tile'):
         evaluation = tile.get_attribute('evaluation')
         if evaluation == 'absent':
@@ -911,6 +879,11 @@ def auto_response_wordle(guess, remaining, entered, expected, hard, master):
         elif evaluation == 'correct':
             response += RIGHT
     return [(response, 0)]
+
+
+def auto_response_infinidle(guess, remaining, entered, expected, hard, master):
+    driver.save_screenshot('infinidle/ss.png')
+    pass
 
 
 def auto_response_dordle(guess, remaining, entered, expected, hard, master):
@@ -1027,31 +1000,41 @@ def parse_command_line_args():
     group2 = parser.add_mutually_exclusive_group()
     group2.add_argument('-auto', choices=['wordle', 'wordzy', 'dordle',
                                           'quordle', 'octordle', 'sedecordle',
-                                          'duotrigordle', '64ordle'],
+                                          'duotrigordle', '64ordle', 'nordle'],
                         metavar='WEBSITE', default=None, dest='site',
                         help=('set this flag to automate play on the given '
                               'website (requires chromedriver) -- NOTE: '
                               'websites with a fixed number of boards will '
                               'override the N argument for number of boards'))
     group2.add_argument('-sim', type=int, default=0, metavar='MAX_SIMS',
-                        help=('set this flag to simulate all possible games '
-                              'and give resulting stats'))
+                        help=('set this flag to simulate MAX_SIMS unique games'
+                              ' and give resulting stats'))
     group3 = parser.add_mutually_exclusive_group()
     group3.add_argument('-continue', type=int, default=1,
                         metavar='LIMIT', dest='board_limit',
                         help=('set this flag to continue playing on multiple '
-                              'boards up to the given number (max 1024)'))
+                              'boards up to the given number (max 1024) '
+                              '-- setting the limit to "-1" will test all '
+                              'possible starting words to find the best one(s)'
+                              ' (be aware that this process may be very slow'))
     group3.add_argument('-endless', action='store_true',
                         help='use to play the same game over and over')
+    group3.add_argument('-challenge', action='store_true',
+                        help=('play the daily wordle, dordle, quordle, and '
+                              'octordle in order, using the answers from each '
+                              'puzzle as the starting words for the next ('
+                              'inspired by YouTube channel Scott Stro-solves)')
+                        )
     parser.add_argument('-best', action='store_true',
-                        help='set this flag to generate a minimal guess tree')
+                        help=('set this flag to generate a minimal guess tree '
+                              '(be aware that this process may be very slow'))
     parser.add_argument('-start', metavar='WORD', nargs='+', default=[],
                         help=('set this flag if there are certain words you '
                               'want to start with regardless of the response'))
     args = parser.parse_args()
     limit = max(min(args.board_limit, 1024), args.n)
     ret_val = (args.n, args.hard, args.master, args.liar, args.site, limit,
-               args.start, args.sim, args.endless, args.best)
+               args.start, args.sim, args.endless, args.challenge, args.best)
     return ret_val
 
 
@@ -1072,6 +1055,9 @@ def load_all_data(master, liar):
             guesses.add(line.strip())
     guesses = list(guesses)
     guesses.sort(key=lambda x: freq_data[x], reverse=True)
+    nordle_guesses = []
+    with open('data/allowed_nordle.json', 'r') as allowed:
+        nordle_guesses = load(allowed)
     resp_file = 'data/responses' + ('_master' if master else '') + '.json'
     if is_ms_os or os.path.getsize(resp_file) < RS:
         with open(resp_file, 'r') as responses:
@@ -1086,7 +1072,7 @@ def load_all_data(master, liar):
     with open(best_guess_file, 'r') as bestf:
         saved_best = load(bestf)
     print('Finished loading.')
-    return answers, guesses, freq_data, saved_best
+    return answers, guesses, nordle_guesses, freq_data, saved_best
 
 
 def save_all_data(master, liar):
@@ -1115,8 +1101,8 @@ def save_all_data(master, liar):
 if __name__ == "__main__":
     # main variable initializations
     args = parse_command_line_args()
-    n_games, hard, master, liar, site, limit, start, sim, endless, best = args
-    answers, guesses, freq, saved_best = load_all_data(master, liar)
+    n_games, hard, master, liar, site, lim, start, sim, inf, stro, best = args
+    answers, guesses, n_guesses, freq, saved_best = load_all_data(master, liar)
     if best:
         tree = {}
         max_depth = 2
@@ -1126,11 +1112,14 @@ if __name__ == "__main__":
         with open('data/{}.json'.format(start[0]), 'w') as data:
             dump(tree, data, indent=2)
         saved_best = tree
-    if endless:
-        limit = n_games * 2
+    if inf:
+        lim = n_games * 2
         if site == 'wordzy':
             n_games = 2
-            limit = 256
+            lim = 256
+    elif stro:
+        n_games = 1
+        lim = 8
 
     # setup for website auto-solve feature
     wordle_sites = {
@@ -1148,10 +1137,6 @@ if __name__ == "__main__":
         else:
             site = 'nordle'
     site_info = {
-        'wordzy': (
-            'https://wordzmania.com/Wordzy/',
-            n_games, master, auto_guess_wordzy, auto_response_wordzy
-        ),
         'wordle': (
             'https://www.nytimes.com/games/wordle/index.html',
             1, False, auto_guess_wordle, auto_response_wordle
@@ -1181,17 +1166,23 @@ if __name__ == "__main__":
             64, False, auto_guess_default, auto_response_64ordle,
         ),
         'nordle': (
-            'https://www.nordle.us/?n=' + str(n_games),
+            'https://www.nordle.us/?n=',
             n_games, False, auto_guess_default, auto_response_nordle
+        ),
+        'wordzy': (
+            'https://wordzmania.com/Wordzy/',
+            n_games, master, auto_guess_wordzy, auto_response_wordzy
+        ),
+        'infinidle': (
+            'https://devbanana.itch.io/infinidle',
+            1, False, auto_guess_default, auto_response_infinidle
         )
     }
     auto_guess = manual_guess
     auto_response = manual_response
     if site is not None:
         addr, n_games, master, auto_guess, auto_response = site_info[site]
-        n_games = open_website(addr, n_games, master, endless)
-    if site == 'nordle':
-        guesses = answers
+        n_games = open_website(addr, n_games, master, inf)
 
     # main functions to call
     if sim > 0:
@@ -1199,40 +1190,44 @@ if __name__ == "__main__":
                  master, liar, auto_guess, auto_response, sim, -8, True)
         exit()
     elif sim == -1:
-        best_worst = [-8, []]
+        best_case = [-8, []]
         worst_case = {}
         with open('data/ordered_guesses.json', 'r') as ordered:
             worst_case = load(ordered)
         modified = sorted(answers, key=lambda x: worst_case[x])
-        idx = modified.index('heals')
-        modified = modified[idx+450:idx+550]
         for starter in tqdm(modified, ascii=progress):
             _, worst = simulate(saved_best, freq, guesses, answers,
                                 [starter], n_games, hard, master, liar,
                                 auto_guess, auto_response, len(answers),
-                                best_worst[0], False)
-            if worst == best_worst[0]:
-                best_worst[1].append(starter)
-            elif worst > best_worst[0]:
-                best_worst[0] = worst
-                best_worst[1] = [starter]
-        print(best_worst)
+                                best_case[0], False)
+            if worst == best_case[0]:
+                best_case[1].append(starter)
+            elif worst > best_case[0]:
+                best_case[0] = worst
+                best_case[1] = [starter]
+        print(best_case)
         exit()
-    solve_wordle(saved_best, freq, guesses, answers, start, n_games, hard,
-                 master, liar, auto_guess, auto_response, True)
-    nordle_played = site == 'nordle'
-    while n_games < limit:
+    solution = [], []
+    if site == 'nordle':
+        solution = solve_wordle({}, freq, n_guesses, answers, start, n_games,
+                                hard, master, liar, auto_guess, auto_response,
+                                True)
+    else:
+        solution = solve_wordle(saved_best, freq, guesses, answers, start,
+                                n_games, hard, master, liar, auto_guess,
+                                auto_response, True)
+    while n_games < lim:
         if site == 'wordzy':
             time.sleep(8)
             dx = driver.find_element(by=By.CLASS_NAME, value='share-container')
             for button in dx.find_elements(by=By.TAG_NAME, value='button'):
                 if button.get_attribute('color') == 'green':
                     button.click()
-                    if endless:
+                    if inf:
                         n_games += 1
                     else:
                         n_games *= 2
-        elif site == 'quordle' and endless:
+        elif site == 'quordle' and inf:
             time.sleep(8)
             driver.find_element(
                 by=By.XPATH,
@@ -1242,22 +1237,25 @@ if __name__ == "__main__":
         elif (site is not None) and not (master or liar):
             time.sleep(8)
             driver.quit()
-            if not endless:
+            if not inf:
                 n_games *= 2
             if n_games not in wordle_sites:
                 site = 'nordle'
             else:
                 site = wordle_sites[n_games]
             addr, n_games, master, auto_guess, auto_response = site_info[site]
-            open_website(addr, n_games, master, endless)
+            open_website(addr, n_games, master, inf)
+        if stro:
+            start = solution[0]
         if site == 'nordle':
-            guesses = answers
-        solve_wordle(saved_best, freq, guesses, answers, start, n_games,
-                     hard, master, liar, auto_guess, auto_response, True)
-        if site == 'nordle':
-            nordle_played = True
-    if not nordle_played:
-        save_all_data(master, liar)
+            solution = solve_wordle({}, freq, n_guesses, answers, start,
+                                    n_games, hard, master, liar, auto_guess,
+                                    auto_response, True)
+        else:
+            solution = solve_wordle(saved_best, freq, guesses, answers, start,
+                                    n_games, hard, master, liar, auto_guess,
+                                    auto_response, True)
+    save_all_data(master, liar)
     if site is not None:
         input("PRESS ENTER TO EXIT")
         driver.quit()

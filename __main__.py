@@ -84,7 +84,7 @@ def load_all_data(master, liar, nyt=False, allow_print=True):
     global response_data, response_data_updated
     if allow_print:
         print('Loading precalculated data...')
-    prefix = 'wordle/data/'
+    prefix = 'wordle-solver/data/'
     freq_data = {}
     with open(prefix + 'freq_map.json', 'r') as data:
         freq_data = load(data)
@@ -99,7 +99,7 @@ def load_all_data(master, liar, nyt=False, allow_print=True):
     with open(prefix + 'allowed_nordle.json', 'r') as allowed:
         nordle_guesses = load(allowed)
     resp_file = 'responses' + ('_master' if master else '') + '.json'
-    if is_ms_os or os.path.getsize(resp_file) < RS:
+    if is_ms_os or os.path.getsize(prefix + resp_file) < RS:
         with open(prefix + resp_file, 'r') as responses:
             response_data = load(responses)
             response_data_updated = False
@@ -121,9 +121,10 @@ def load_all_data(master, liar, nyt=False, allow_print=True):
 
 
 def save_all_data(master, liar, nyt=False, allow_print=True):
+    global best_guess_updated, response_data_updated, saved_best, response_data
     if allow_print:
         print('Saving all newly discovered data...')
-    prefix = 'wordle/data/'
+    prefix = 'wordle-solver/data/'
     filename = 'best_guess.json'
     if nyt:
         filename = 'best_guess_nyt.json'
@@ -133,17 +134,18 @@ def save_all_data(master, liar, nyt=False, allow_print=True):
         filename = 'best_guess_master.json'
     elif liar:
         filename = 'best_guess_liar.json'
+    filename = prefix + filename
     if best_guess_updated:
         before = str(os.path.getsize(filename)) + 'B'
-        with open(prefix + filename, 'w') as bestf:
+        with open(filename, 'w') as bestf:
             dump(saved_best, bestf, sort_keys=True, indent=2)
         after = str(os.path.getsize(filename)) + 'B'
         if allow_print:
             print('  "{}"  {:>8} > {:<8}'.format(filename, before, after))
-    resp_file = 'responses' + ('_master' if master else '') + '.json'
+    resp_file = prefix + 'responses' + ('_master' if master else '') + '.json'
     if response_data_updated and (is_ms_os or os.path.getsize(resp_file) < RS):
         before = str(os.path.getsize(resp_file)) + 'B'
-        with open(prefix + resp_file, 'w') as responses:
+        with open(resp_file, 'w') as responses:
             dump(response_data, responses, sort_keys=True)
         after = str(os.path.getsize(resp_file)) + 'B'
         if allow_print:

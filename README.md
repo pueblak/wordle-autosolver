@@ -16,13 +16,10 @@ chromedriver_autoinstaller.install()
 ```
 Note: The program will still compile and run without selenium or chromedriver, but the "-auto" flag will throw errors if set.
 
-### Other
-Must [install chromedriver](https://chromedriver.chromium.org/getting-started) on your device and [add to PATH](https://zwbetz.com/download-chromedriver-binary-and-add-to-your-path-for-automated-functional-testing/) environment variable ([alternative method](https://pypi.org/project/chromedriver-autoinstaller/))
-
 ## Usage
 ```
-wordle [-h] [-n N] [-nyt | -hard | -master | -liar] [-auto WEBSITE | -sim MAX_SIMS]
-       [-quiet] [-continue LIMIT | -endless | -challenge] [-best] [-start WORD [WORD ...]]
+wordle-solver [-h] [-n N] [-nyt | -hard | -master | -liar] [-auto WEBSITE | -sim MAX_SIMS]
+              [-quiet] [-continue LIMIT | -endless | -challenge] [-best] [-start WORD [WORD ...]]
 
 Solve a Wordle game on one board or multiple by calculating the best guesses at every step.
 

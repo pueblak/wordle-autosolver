@@ -422,3 +422,11 @@ def auto_response_64ordle(guess, remaining, entered, expected, hard, master,
                 break
         responses.append((response, board))
     return responses
+
+
+def get_driver():
+    return driver
+
+
+def quit_driver():
+    driver.quit()

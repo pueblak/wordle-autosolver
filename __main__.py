@@ -279,7 +279,7 @@ if quiet:
 while n_games < lim:
     if site == 'wordzy':
         time.sleep(8)
-        dx = driver.find_element(by=By.CLASS_NAME, value='share-container')
+        dx = get_driver().find_element(By.CLASS_NAME, 'share-container')
         for button in dx.find_elements(by=By.TAG_NAME, value='button'):
             if button.get_attribute('color') == 'green':
                 button.click()
@@ -289,14 +289,14 @@ while n_games < lim:
                     n_games *= 2
     elif site == 'quordle' and inf:
         time.sleep(8)
-        driver.find_element(
+        get_driver().find_element(
             by=By.XPATH,
             value='//*[@id="root"]/div/div[1]/div/button[1]'
         ).click()
         time.sleep(2)
     elif (site is not None) and not (master or liar):
         time.sleep(8)
-        driver.quit()
+        quit_driver()
         if not inf:
             n_games *= 2
         if n_games not in wordle_sites:
@@ -324,4 +324,4 @@ while n_games < lim:
 save_all_data(master, liar, nyt, not quiet)
 if site is not None:
     input("PRESS ENTER TO EXIT")
-    driver.quit()
+    quit_driver()

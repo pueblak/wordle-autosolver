@@ -18,8 +18,8 @@ Note: The program will still compile and run without selenium or chromedriver, b
 
 ## Usage
 ```
-wordle-solver [-h] [-n N] [-nyt | -hard | -master | -liar] [-auto WEBSITE | -sim MAX_SIMS]
-              [-quiet] [-continue LIMIT | -endless | -challenge] [-best] [-start WORD [WORD ...]]
+wordle-solver [-h] [-n N] [-nyt | -hard | -master | -liar] [-auto WEBSITE | -sim MAX_SIMS] [-quiet]
+              [-continue LIMIT | -endless | -challenge] [-best] [-clean] [-start WORD [WORD ...]]
 
 Solve a Wordle game on one board or multiple by calculating the best guesses at every step.
 
@@ -51,6 +51,9 @@ optional arguments:
                         YouTube channel Scott Stro-solves)
   -best                 set this flag to generate a minimal guess tree (be aware that this process
                         may be very slow)
+  -clean                empty the contents of "data/best_guess.json", "data/responses.json", and
+                        each of their variants to relieve some storage space (the program will not
+                        execute any other commands when this flag is set)
   -start WORD [WORD ...]
                         set this flag if there are certain words you want to start with regardless
                         of the response

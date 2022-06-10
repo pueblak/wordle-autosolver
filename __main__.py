@@ -11,6 +11,7 @@ from auto import *
 
 
 RS = 2**26  # file size limit (in bytes) for imports
+data_path = os.path.realpath(__file__).split('\\')[-2] + '/data/'
 
 
 def parse_command_line_args():
@@ -70,39 +71,66 @@ def parse_command_line_args():
                               '(be aware that this process may be very slow) '
                               'once completed, the program will continue as '
                               'normal using the '))
+    parser.add_argument('-clean', action='store_true',
+                        help=('empty the contents of "data/best_guess.json", '
+                              '"data/responses.json", and each of their '
+                              'variants to relieve some storage space (the '
+                              'program will not execute any other commands '
+                              'when this flag is set)'))
     parser.add_argument('-start', metavar='WORD', nargs='+', default=[],
                         help=('set this flag if there are certain words you '
                               'want to start with regardless of the response'))
     args = parser.parse_args()
+    if args.clean:
+        clean_all_data()
+        exit()
     lim = max(min(args.board_limit, 1024), args.n)
     ret = (args.n, args.hard, args.master, args.liar, args.site, lim, args.nyt,
            args.start, args.sim, args.inf, args.stro, args.best, args.quiet)
     return ret
 
 
+def format_bytes(num_bytes):
+    value = num_bytes
+    suffix = 'B'
+    if num_bytes > 2**40:
+        value = num_bytes / 2**40
+        suffix = 'TB'
+    elif num_bytes > 2**30:
+        value = num_bytes / 2**30
+        suffix = 'GB'
+    elif num_bytes > 2**20:
+        value = num_bytes / 2**20
+        suffix = 'MB'
+    elif num_bytes > 2**10:
+        value = num_bytes / 2**10
+        suffix = 'KB'
+    if num_bytes > 2**10:
+        value = '{:.3f}'.format(value)
+    return str(value) + suffix
+
+
 def load_all_data(master, liar, nyt=False, allow_print=True):
-    global response_data, response_data_updated
     if allow_print:
         print('Loading precalculated data...')
-    prefix = 'wordle-solver/data/'
     freq_data = {}
-    with open(prefix + 'freq_map.json', 'r') as data:
+    with open(data_path + 'freq_map.json', 'r') as data:
         freq_data = load(data)
     ans_file = 'nyt_answers.json' if nyt else 'curated_answers.json'
     answers = []
-    with open(prefix + ans_file, 'r') as curated:
+    with open(data_path + ans_file, 'r') as curated:
         answers = load(curated)
     guesses = []
-    with open(prefix + 'allowed_guesses.json', 'r') as allowed:
+    with open(data_path + 'allowed_guesses.json', 'r') as allowed:
         guesses = load(allowed)
     nordle_guesses = []
-    with open(prefix + 'allowed_nordle.json', 'r') as allowed:
+    with open(data_path + 'allowed_nordle.json', 'r') as allowed:
         nordle_guesses = load(allowed)
     resp_file = 'responses' + ('_master' if master else '') + '.json'
-    if is_ms_os or os.path.getsize(prefix + resp_file) < RS:
-        with open(prefix + resp_file, 'r') as responses:
-            response_data = load(responses)
-            response_data_updated = False
+    if is_ms_os or os.path.getsize(data_path + resp_file) < RS:
+        with open(data_path + resp_file, 'r') as responses:
+            set_response_data(load(responses))
+            set_response_data_updated(False)
     best_guess_file = 'best_guess.json'
     if nyt:
         best_guess_file = 'best_guess_nyt.json'
@@ -113,18 +141,17 @@ def load_all_data(master, liar, nyt=False, allow_print=True):
     elif liar:
         best_guess_file = 'best_guess_liar.json'
     saved_best = dict([(x, {}) for x in guesses])
-    with open(prefix + best_guess_file, 'r') as bestf:
+    with open(data_path + best_guess_file, 'r') as bestf:
         saved_best = load(bestf)
+        set_best_guess_updated(False)
     if allow_print:
         print('Finished loading.')
     return answers, guesses, nordle_guesses, freq_data, saved_best
 
 
 def save_all_data(master, liar, nyt=False, allow_print=True):
-    global best_guess_updated, response_data_updated, saved_best, response_data
     if allow_print:
         print('Saving all newly discovered data...')
-    prefix = 'wordle-solver/data/'
     filename = 'best_guess.json'
     if nyt:
         filename = 'best_guess_nyt.json'
@@ -134,24 +161,43 @@ def save_all_data(master, liar, nyt=False, allow_print=True):
         filename = 'best_guess_master.json'
     elif liar:
         filename = 'best_guess_liar.json'
-    filename = prefix + filename
-    if best_guess_updated:
-        before = str(os.path.getsize(filename)) + 'B'
-        with open(filename, 'w') as bestf:
+    if get_best_guess_updated():
+        before = format_bytes(os.path.getsize(data_path + filename))
+        with open(data_path + filename, 'w') as bestf:
             dump(saved_best, bestf, sort_keys=True, indent=2)
-        after = str(os.path.getsize(filename)) + 'B'
+        after = format_bytes(os.path.getsize(data_path + filename))
         if allow_print:
             print('  "{}"  {:>8} > {:<8}'.format(filename, before, after))
-    resp_file = prefix + 'responses' + ('_master' if master else '') + '.json'
-    if response_data_updated and (is_ms_os or os.path.getsize(resp_file) < RS):
-        before = str(os.path.getsize(resp_file)) + 'B'
-        with open(resp_file, 'w') as responses:
+    resp_file = 'responses' + ('_master' if master else '') + '.json'
+    if (get_response_data_updated() and
+            (is_ms_os or os.path.getsize(data_path + resp_file) < RS)):
+        before = format_bytes(os.path.getsize(data_path + resp_file))
+        with open(data_path + resp_file, 'w') as responses:
             dump(response_data, responses, sort_keys=True)
-        after = str(os.path.getsize(resp_file)) + 'B'
+        after = format_bytes(os.path.getsize(data_path + resp_file))
         if allow_print:
             print('  "{}"  {:>8} > {:<8}'.format(resp_file, before, after))
     if allow_print:
         print('Save complete.')
+
+
+def clean_all_data():
+    filenames = [
+        'best_guess.json', 'best_guess_nyt.json', 'best_guess_hard.json',
+        'best_guess_master.json', 'best_guess_liar.json', 'responses.json',
+        'responses_master.json'
+    ]
+    deleted = 0
+    added = 0
+    for filename in filenames:
+        try:
+            deleted += os.path.getsize(data_path + filename)
+        except FileNotFoundError:
+            pass
+        with open(data_path + filename, 'w') as file:
+            dump({}, file)
+        added += os.path.getsize(data_path + filename)
+    print('Data cleaned. {} deleted.'.format(format_bytes(deleted - added)))
 
 
 # main variable initializations
@@ -281,7 +327,7 @@ if quiet:
 while n_games < lim:
     if site == 'wordzy':
         time.sleep(8)
-        dx = get_driver().find_element(By.CLASS_NAME, 'share-container')
+        dx = driver.find_element(By.CLASS_NAME, 'share-container')
         for button in dx.find_elements(by=By.TAG_NAME, value='button'):
             if button.get_attribute('color') == 'green':
                 button.click()
@@ -291,7 +337,7 @@ while n_games < lim:
                     n_games *= 2
     elif site == 'quordle' and inf:
         time.sleep(8)
-        get_driver().find_element(
+        driver.find_element(
             by=By.XPATH,
             value='//*[@id="root"]/div/div[1]/div/button[1]'
         ).click()

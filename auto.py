@@ -18,14 +18,18 @@ auto_guess_count = 0
 dialog_closed = False
 
 
+def quit_driver():
+    driver.quit()
+
+
 def open_website(website, num_boards=1, master=False, inf=False, quiet=False):
     global driver
     if not quiet:
-        print("Connecting to the target website...")
+        print("\nConnecting to the target website...")
     options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
     if quiet:
-        # options.add_argument('--headless')
+        options.add_argument('--headless')
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         options.add_argument("--log-level=3")
     driver = webdriver.Chrome(options=options)
@@ -44,7 +48,7 @@ def open_website(website, num_boards=1, master=False, inf=False, quiet=False):
     # # #
     driver.get(website)
     if not quiet:
-        print("Connected to '{}'.".format(website))
+        print("\nConnected to '{}'".format(website))
     time.sleep(5)
     # must navigate to the correct page on these websites
     if 'wordzmania' in website:
@@ -422,11 +426,3 @@ def auto_response_64ordle(guess, remaining, entered, expected, hard, master,
                 break
         responses.append((response, board))
     return responses
-
-
-def get_driver():
-    return driver
-
-
-def quit_driver():
-    driver.quit()

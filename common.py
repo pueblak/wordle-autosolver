@@ -13,6 +13,29 @@ is_ms_os = os.name == 'nt'
 progress = '__...:::!!|' if is_ms_os else None
 
 
+def set_best_guess_updated(value=True):
+    global best_guess_updated
+    best_guess_updated = value
+
+
+def get_best_guess_updated():
+    return best_guess_updated
+
+
+def set_response_data_updated(value=True):
+    global response_data_updated
+    response_data_updated = value
+
+
+def get_response_data_updated():
+    return response_data_updated
+
+
+def set_response_data(value={}):
+    global response_data
+    response_data = value
+
+
 def get_easy_response(guess, answer):
     if guess == answer:
         return ''.join([RIGHT for _ in answer])

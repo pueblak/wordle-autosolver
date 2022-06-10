@@ -44,7 +44,6 @@ best_starters = [
 def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                  num_boards, hard, master, liar, endless,
                  auto_guess, auto_response, allow_print=False):
-    global best_guess_updated
     if allow_print:
         print(
             '\n\nStarting solver.' + (
@@ -73,11 +72,11 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                     actual_best = guess
                     if allow_print:
                         print(
-                            "  Predetermined guess is {}\n".format(
+                            "\n  Predetermined guess is {}\n".format(
                                 guess.upper()))
                     break
-        elif allow_print:
-            print("\n  Your next guess should be {}\n".format(
+        elif allow_print and auto_guess != manual_guess:
+            print("\n  Guessing {}...\n".format(
                 actual_best.upper()))
         guess = auto_guess(remaining, guesses, actual_best,
                            hard, master, endless)
@@ -120,10 +119,10 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
             # update subtree (and by extension, also saved_best)
             if guess not in subtree[board]:
                 subtree[board][guess] = {}
-                best_guess_updated = True
+                set_best_guess_updated()
             if response not in subtree[board][guess]:
                 subtree[board][guess][response] = {}
-                best_guess_updated = True
+                set_best_guess_updated()
             subtree[board] = subtree[board][guess][response]
             # print best guesses (or the answer) to the console
             best[board] = []
@@ -150,7 +149,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                 for best_guess in best[board]:
                     if best_guess not in subtree[board]:
                         subtree[board][best_guess] = {}
-                        best_guess_updated = True
+                        set_best_guess_updated()
                 best[board].sort(key=lambda x: freq[x], reverse=True)
                 if allow_print:
                     print('  Best guess(es){}: {}'.format(

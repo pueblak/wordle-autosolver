@@ -2,19 +2,10 @@
 A python program that can solve the Wordle word-guessing game and many of its variants.
 
 ## Setup
-Must download and install the following packages from pip:
+You may download and install this package using pip:
 ```bash
-pip install tqdm
-pip install selenium
-pip install chromedriver-autoinstaller
+pip install wordle-solver
 ```
-Then run the following two lines in a python program to install chromedriver on your device (or ensure it is up-to-date if already installed):
-```python
-import chromedriver_autoinstaller
-
-chromedriver_autoinstaller.install()
-```
-Note: The program will still compile and run without selenium or chromedriver, but the "-auto" flag will throw errors if set.
 
 ## Usage
 ```

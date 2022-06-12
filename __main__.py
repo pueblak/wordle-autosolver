@@ -1,4 +1,3 @@
-import os
 import time
 from argparse import ArgumentParser
 from json import load, dump
@@ -8,11 +7,7 @@ from tqdm import tqdm
 from common import *
 from solver import *
 from auto import *
-
-
-RS = 2**26  # file size limit (in bytes) for imports
-data_path = os.path.realpath(__file__)
-data_path = data_path.split('/' if '/' in data_path else '\\')[-2] + '/data/'
+from data import *
 
 
 def parse_command_line_args():
@@ -37,7 +32,8 @@ def parse_command_line_args():
     group2 = parser.add_mutually_exclusive_group()
     group2.add_argument('-auto', choices=['wordle', 'wordzy', 'dordle',
                                           'quordle', 'octordle', 'sedecordle',
-                                          'duotrigordle', '64ordle', 'nordle'],
+                                          'duotrigordle', '64ordle', 'nordle',
+                                          'fibble'],
                         metavar='WEBSITE', default=None, dest='site',
                         help=('set this flag to automate play on the given '
                               'website (requires chromedriver) -- NOTE: '
@@ -45,7 +41,8 @@ def parse_command_line_args():
                               'override the N argument for number of boards '
                               "-- valid websites are: 'wordle', 'wordzy', "
                               "'dordle', 'quordle', 'octordle', 'sedecordle', "
-                              "'duotrigordle', '64ordle', and 'nordle'"))
+                              "'duotrigordle', '64ordle', 'nordle', and "
+                              "'fibble'"))
     group2.add_argument('-sim', type=int, default=0, metavar='MAX_SIMS',
                         help=('set this flag to simulate MAX_SIMS unique games'
                               ' and give resulting stats'))
@@ -55,10 +52,11 @@ def parse_command_line_args():
     group3.add_argument('-continue', type=int, default=1,
                         metavar='LIMIT', dest='board_limit',
                         help=('set this flag to continue playing on multiple '
-                              'boards up to the given number (max 1024) '
+                              'boards up to the given number (max 500) '
                               '-- setting the limit to "-1" will test all '
                               'possible starting words to find the best one(s)'
-                              ' (be aware that this process may be very slow'))
+                              ' (be aware that this process may be very slow)')
+                        )
     group3.add_argument('-endless', action='store_true', dest='inf',
                         help='use to play the same game over and over')
     group3.add_argument('-challenge', action='store_true', dest='stro',
@@ -85,127 +83,18 @@ def parse_command_line_args():
     if args.clean:
         clean_all_data()
         exit()
-    lim = max(min(args.board_limit, 1024), args.n)
+    lim = max(min(args.board_limit, 500), args.n)
     ret = (args.n, args.hard, args.master, args.liar, args.site, lim, args.nyt,
            args.start, args.sim, args.inf, args.stro, args.best, args.quiet)
     return ret
 
 
-def format_bytes(num_bytes):
-    value = num_bytes
-    suffix = 'B'
-    if num_bytes > 2**40:
-        value = num_bytes / 2**40
-        suffix = 'TB'
-    elif num_bytes > 2**30:
-        value = num_bytes / 2**30
-        suffix = 'GB'
-    elif num_bytes > 2**20:
-        value = num_bytes / 2**20
-        suffix = 'MB'
-    elif num_bytes > 2**10:
-        value = num_bytes / 2**10
-        suffix = 'KB'
-    if num_bytes > 2**10:
-        value = '{:.3f}'.format(value)
-    return str(value) + suffix
-
-
-def load_all_data(master, liar, nyt=False, allow_print=True):
-    if allow_print:
-        print('Loading precalculated data...')
-    freq_data = {}
-    with open(data_path + 'freq_map.json', 'r') as data:
-        freq_data = load(data)
-    ans_file = 'nyt_answers.json' if nyt else 'curated_answers.json'
-    answers = []
-    with open(data_path + ans_file, 'r') as curated:
-        answers = load(curated)
-    guesses = []
-    with open(data_path + 'allowed_guesses.json', 'r') as allowed:
-        guesses = load(allowed)
-    nordle_guesses = []
-    with open(data_path + 'allowed_nordle.json', 'r') as allowed:
-        nordle_guesses = load(allowed)
-    resp_file = 'responses' + ('_master' if master else '') + '.json'
-    if is_ms_os or os.path.getsize(data_path + resp_file) < RS:
-        with open(data_path + resp_file, 'r') as responses:
-            set_response_data(load(responses))
-            set_response_data_updated(False)
-    best_guess_file = 'best_guess.json'
-    if nyt:
-        best_guess_file = 'best_guess_nyt.json'
-    elif hard:
-        best_guess_file = 'best_guess_hard.json'
-    elif master:
-        best_guess_file = 'best_guess_master.json'
-    elif liar:
-        best_guess_file = 'best_guess_liar.json'
-    saved_best = dict([(x, {}) for x in guesses])
-    with open(data_path + best_guess_file, 'r') as bestf:
-        saved_best = load(bestf)
-        set_best_guess_updated(False)
-    if allow_print:
-        print('Finished loading.')
-    return answers, guesses, nordle_guesses, freq_data, saved_best
-
-
-def save_all_data(master, liar, nyt=False, allow_print=True):
-    if allow_print:
-        print('Saving all newly discovered data...')
-    filename = 'best_guess.json'
-    if nyt:
-        filename = 'best_guess_nyt.json'
-    elif hard:
-        filename = 'best_guess_hard.json'
-    elif master:
-        filename = 'best_guess_master.json'
-    elif liar:
-        filename = 'best_guess_liar.json'
-    if get_best_guess_updated():
-        before = format_bytes(os.path.getsize(data_path + filename))
-        with open(data_path + filename, 'w') as bestf:
-            dump(saved_best, bestf, sort_keys=True, indent=2)
-        after = format_bytes(os.path.getsize(data_path + filename))
-        if allow_print:
-            print('  "{}"  {:>8} > {:<8}'.format(filename, before, after))
-    resp_file = 'responses' + ('_master' if master else '') + '.json'
-    if (get_response_data_updated() and
-            (is_ms_os or os.path.getsize(data_path + resp_file) < RS)):
-        before = format_bytes(os.path.getsize(data_path + resp_file))
-        with open(data_path + resp_file, 'w') as responses:
-            dump(get_response_data(), responses, sort_keys=True)
-        after = format_bytes(os.path.getsize(data_path + resp_file))
-        if allow_print:
-            print('  "{}"  {:>8} > {:<8}'.format(resp_file, before, after))
-    if allow_print:
-        print('Save complete.')
-
-
-def clean_all_data():
-    filenames = [
-        'best_guess.json', 'best_guess_nyt.json', 'best_guess_hard.json',
-        'best_guess_master.json', 'best_guess_liar.json', 'responses.json',
-        'responses_master.json'
-    ]
-    deleted = 0
-    added = 0
-    for filename in filenames:
-        try:
-            deleted += os.path.getsize(data_path + filename)
-        except FileNotFoundError:
-            pass
-        with open(data_path + filename, 'w') as file:
-            dump({}, file)
-        added += os.path.getsize(data_path + filename)
-    print('Data cleaned. {} deleted.'.format(format_bytes(deleted - added)))
-
-
 # main variable initializations
 (n_games, hard, master, liar, site, lim, nyt,
     start, sim, inf, stro, best, quiet) = parse_command_line_args()
-(answers, guesses, n_guesses,
-    freq, saved_best) = load_all_data(master, liar, nyt, not quiet)
+(answers, guesses, n_guesses, freq,
+    saved_best, resp_data) = load_all_data(hard, master, liar, nyt, not quiet)
+set_response_data(resp_data)
 if best:
     tree = {}
     max_depth = 2
@@ -215,14 +104,6 @@ if best:
     with open('data/{}.json'.format(start[0]), 'w') as data:
         dump(tree, data, indent=2)
     saved_best = tree
-if inf:
-    lim = n_games + 1
-    if site == 'wordzy':
-        n_games = 2
-        lim = 256
-elif stro:
-    n_games = 1
-    lim = 8
 
 # setup for website auto-solve feature
 wordle_sites = {
@@ -239,56 +120,29 @@ if site == 'wordle':
         site = wordle_sites[n_games]
     else:
         site = 'nordle'
-site_info = {
-    'wordle': (
-        'https://www.nytimes.com/games/wordle/index.html',
-        1, False, auto_guess_wordle, auto_response_wordle
-    ),
-    'dordle': (
-        'https://zaratustra.itch.io/dordle',
-        2, False, auto_guess_default, auto_response_dordle
-    ),
-    'quordle': (
-        'https://www.quordle.com/#/',
-        4, False, auto_guess_default, auto_response_quordle
-    ),
-    'octordle': (
-        'https://octordle.com/',
-        8, False, auto_guess_default, auto_response_default
-    ),
-    'sedecordle': (
-        'https://www.sedecordle.com/',
-        16, False, auto_guess_default, auto_response_default
-    ),
-    'duotrigordle': (
-        'https://duotrigordle.com/',
-        32, False, auto_guess_default, auto_response_duotrigordle
-    ),
-    '64ordle': (
-        'https://64ordle.au/',
-        64, False, auto_guess_default, auto_response_64ordle,
-    ),
-    'nordle': (
-        'https://www.nordle.us/?n=',
-        0, False, auto_guess_default, auto_response_nordle
-    ),
-    'wordzy': (
-        'https://wordzmania.com/Wordzy/',
-        0, master, auto_guess_wordzy, auto_response_wordzy
-    ),
-    'infinidle': (
-        'https://devbanana.itch.io/infinidle',
-        1, False, auto_guess_default, auto_response_infinidle
-    )
-}
+    if liar:
+        site = 'fibble'
 auto_guess = manual_guess
 auto_response = manual_response
 if site is not None:
-    if site == 'wordzy' or site == 'nordle':
-        addr, _, master, auto_guess, auto_response = site_info[site]
+    if site == 'wordzy':
+        (addr, _, hard, _, liar,
+            auto_guess, auto_response) = site_info[site]
+    elif site == 'nordle':
+        (addr, _, hard, master, liar,
+            auto_guess, auto_response) = site_info[site]
     else:
-        addr, n_games, master, auto_guess, auto_response = site_info[site]
+        (addr, n_games, hard, master, liar,
+            auto_guess, auto_response) = site_info[site]
     n_games = open_website(addr, n_games, master, inf, quiet)
+if inf:
+    lim = n_games + 1
+    if site == 'wordzy':
+        n_games = 2
+        lim = 256  # the website struggles to respond around this point
+elif stro:
+    n_games = 1
+    lim = 8
 
 # main functions to call
 if sim > 0:
@@ -314,21 +168,34 @@ elif sim == -1:
     print(best_case)
     exit()
 solution = [], []
-if site == 'nordle':
-    solution = solve_wordle({}, freq, n_guesses, answers, start,
-                            n_games, hard, master, liar, inf,
-                            auto_guess, auto_response, not quiet)
-else:
-    solution = solve_wordle(saved_best, freq, guesses, answers, start,
-                            n_games, hard, master, liar, inf,
-                            auto_guess, auto_response, not quiet)
-if quiet:
-    score = n_games + 5 - len(solution[1]) - int(site == 'wordzy')
-    print('\n  SOLUTION={}\n     SCORE={}\n'.format(solution[0], score))
-while n_games < lim:
+while n_games <= lim:
+    if site == 'fibble':
+        guess = (manual_guess(answers, guesses, 'lying', False, False, inf)
+                 if auto_guess == manual_guess else auto_read_fibble_start())
+        response = (manual_response(guess, answers, [], [0],
+                                    False, False, False, inf)
+                    if auto_guess == manual_guess else
+                    auto_response_fibble(guess, answers, [], [0],
+                                         False, False, False, inf))[0][0]
+        filtered = filter_remaining(answers, guess, response, False, True)
+        solution = solve_wordle(saved_best, freq, guesses, filtered, start,
+                                n_games, hard, master, liar, inf,
+                                auto_guess, auto_response, not quiet)
+    elif site == 'nordle':
+        solution = solve_wordle({}, freq, n_guesses, answers, start,
+                                n_games, hard, master, liar, inf,
+                                auto_guess, auto_response, not quiet)
+    else:
+        solution = solve_wordle(saved_best, freq, guesses, answers, start,
+                                n_games, hard, master, liar, inf,
+                                auto_guess, auto_response, not quiet)
+    if quiet:
+        sol = solution[0]
+        score = n_games + 5 - len(solution[1]) - int(site == 'wordzy')
+        print('\n  SOLUTION={}\n     SCORE={}\n'.format(sol, score))
     if site == 'wordzy':
         time.sleep(8)
-        dx = driver.find_element(By.CLASS_NAME, 'share-container')
+        dx = get_driver().find_element(By.CLASS_NAME, 'share-container')
         for button in dx.find_elements(by=By.TAG_NAME, value='button'):
             if button.get_attribute('color') == 'green':
                 button.click()
@@ -338,7 +205,7 @@ while n_games < lim:
                     n_games *= 2
     elif site == 'quordle' and inf:
         time.sleep(8)
-        driver.find_element(
+        get_driver().find_element(
             by=By.XPATH,
             value='//*[@id="root"]/div/div[1]/div/button[1]'
         ).click()
@@ -356,21 +223,15 @@ while n_games < lim:
             (addr, n_games, master,
              auto_guess, auto_response) = site_info[site]
         open_website(addr, n_games, master, inf, quiet)
+    elif site is not None and liar and inf:
+        get_driver().find_element(
+            By.XPATH, '//*[@id="root"]/div/div[3]/div[1]/span[2]/a'
+        ).click()
+        time.sleep(2)
     if stro:
         start = solution[0]
-    if site == 'nordle':
-        solution = solve_wordle({}, freq, n_guesses, answers, start,
-                                n_games, hard, master, liar, inf,
-                                auto_guess, auto_response, not quiet)
-    else:
-        solution = solve_wordle(saved_best, freq, guesses, answers, start,
-                                n_games, hard, master, liar, inf,
-                                auto_guess, auto_response, not quiet)
-    if quiet:
-        sol = solution[0]
-        score = n_games + 5 - len(solution[1]) - int(site == 'wordzy')
-        print('\n  SOLUTION={}\n     SCORE={}\n'.format(sol, score))
-save_all_data(master, liar, nyt, not quiet)
+save_all_data(hard, master, liar, get_best_guess_updated(), saved_best,
+              get_response_data_updated(), get_response_data(), nyt, not quiet)
 if site is not None:
     input("PRESS ENTER TO EXIT")
     quit_driver()

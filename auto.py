@@ -18,6 +18,10 @@ auto_guess_count = 0
 dialog_closed = False
 
 
+def get_driver():
+    return driver
+
+
 def quit_driver():
     driver.quit()
 
@@ -40,6 +44,8 @@ def open_website(website, num_boards=1, master=False, inf=False, quiet=False):
         website += '?mode=' + ('free' if inf else 'daily')
     elif 'quordle' in website and inf:
         website += 'practice'
+    elif 'fibble' in website and inf:
+        website += '?unlimited'
     elif 'nordle' in website:
         website += str(num_boards)
     # # # CURRENTLY NOT WORKING -- ENDLESS WORDLE WILL DEFAULT TO DAILY WORDLE
@@ -332,6 +338,7 @@ def auto_response_wordle(guess, remaining, entered, expected, hard, master,
 def auto_response_infinidle(guess, remaining, entered, expected, hard, master,
                             endless):
     driver.save_screenshot('infinidle/ss.png')
+    # now check rgb values of specific pixels to figure out what's going on
     pass
 
 
@@ -426,3 +433,85 @@ def auto_response_64ordle(guess, remaining, entered, expected, hard, master,
                 break
         responses.append((response, board))
     return responses
+
+
+def auto_response_fibble(guess, remaining, entered, expected, hard, master,
+                         liar, endless):
+    response = ''
+    row = driver.find_elements(by=By.CLASS_NAME, value='Row')[len(entered)]
+    for letter in row.find_elements(by=By.CLASS_NAME, value='Row-letter'):
+        label = letter.get_attribute('aria-label')
+        if 'correct' in label:
+            response += RIGHT
+        elif 'elsewhere' in label:
+            response += CLOSE
+        else:
+            response += WRONG
+    return [(response, 0)]
+
+
+def auto_read_fibble_start():
+    guess = ''
+    row = driver.find_element(by=By.CLASS_NAME, value='Row')
+    for letter in row.find_elements(by=By.CLASS_NAME, value='Row-letter'):
+        guess += letter.get_attribute('aria-label').split(':')[0]
+    return guess.lower()
+
+
+site_info = {
+    'wordle': (
+        'https://www.nytimes.com/games/wordle/index.html',
+        1, True, False, False,
+        auto_guess_wordle, auto_response_wordle
+    ),
+    'dordle': (
+        'https://zaratustra.itch.io/dordle',
+        2, False, False, False,
+        auto_guess_default, auto_response_dordle
+    ),
+    'quordle': (
+        'https://www.quordle.com/#/',
+        4, False, False, False,
+        auto_guess_default, auto_response_quordle
+    ),
+    'octordle': (
+        'https://octordle.com/',
+        8, False, False, False,
+        auto_guess_default, auto_response_default
+    ),
+    'sedecordle': (
+        'https://www.sedecordle.com/',
+        16, False, False, False,
+        auto_guess_default, auto_response_default
+    ),
+    'duotrigordle': (
+        'https://duotrigordle.com/',
+        32, False, False, False,
+        auto_guess_default, auto_response_duotrigordle
+    ),
+    '64ordle': (
+        'https://64ordle.au/',
+        64, False, False, False,
+        auto_guess_default, auto_response_64ordle,
+    ),
+    'nordle': (
+        'https://www.nordle.us/?n=',
+        0, False, False, False,
+        auto_guess_default, auto_response_nordle
+    ),
+    'wordzy': (
+        'https://wordzmania.com/Wordzy/',
+        0, False, True, False,
+        auto_guess_wordzy, auto_response_wordzy
+    ),
+    'fibble': (
+        'https://fibble.xyz/',
+        1, False, False, True,
+        auto_guess_default, auto_response_fibble
+    ),
+    'infinidle': (
+        'https://devbanana.itch.io/infinidle',
+        1, False, False, False,
+        auto_guess_default, auto_response_infinidle
+    )
+}

@@ -202,7 +202,9 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                 if best_score == sum(len(r) for r in remaining):
                     actual_best = sum(best, [])[0]
             if actual_best in unentered_answers:
-                expected.remove(solved.index(actual_best))
+                solved_board = solved.index(actual_best)
+                if solved_board in expected:
+                    expected.remove(solved_board)
     if allow_print:
         print('\nSolve complete.\n')
     if len(unentered_answers) > 0 and auto_guess != manual_guess:

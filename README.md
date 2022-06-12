@@ -38,10 +38,10 @@ optional arguments:
                         -- NOTE: websites with a fixed number of boards will override the N
                         argument for number of boards -- valid websites are: 'wordle', 'wordzy',
                         'dordle', 'quordle', 'octordle', 'sedecordle', 'duotrigordle', '64ordle',
-                        and 'nordle'
+                        'nordle', and 'fibble'
   -continue LIMIT       set this flag to continue playing on multiple boards up to the given number
-                        (max 1024) -- setting the limit to "-1" will test all possible starting
-                        words to find the best one(s) (be aware that this process may be very slow
+                        (max 500) -- setting the limit to "-1" will test all possible starting
+                        words to find the best one(s) (be aware that this process may be very slow)
   -endless              use to play the same game over and over
   -challenge            play the daily Wordle, Dordle, Quordle, and Octordle in order, using the
                         answers from each puzzle as the starting words for the next (inspired by

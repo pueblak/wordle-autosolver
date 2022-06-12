@@ -31,9 +31,13 @@ def get_response_data_updated():
     return response_data_updated
 
 
-def set_response_data(value={}):
+def set_response_data(value):
     global response_data
     response_data = value
+
+
+def get_response_data():
+    return response_data
 
 
 def get_easy_response(guess, answer):

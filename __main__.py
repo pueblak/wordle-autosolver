@@ -11,7 +11,8 @@ from auto import *
 
 
 RS = 2**26  # file size limit (in bytes) for imports
-data_path = os.path.realpath(__file__).split('\\')[-2] + '/data/'
+data_path = os.path.realpath(__file__)
+data_path = data_path.split('/' if '/' in data_path else '\\')[-2] + '/data/'
 
 
 def parse_command_line_args():
@@ -173,7 +174,7 @@ def save_all_data(master, liar, nyt=False, allow_print=True):
             (is_ms_os or os.path.getsize(data_path + resp_file) < RS)):
         before = format_bytes(os.path.getsize(data_path + resp_file))
         with open(data_path + resp_file, 'w') as responses:
-            dump(response_data, responses, sort_keys=True)
+            dump(get_response_data(), responses, sort_keys=True)
         after = format_bytes(os.path.getsize(data_path + resp_file))
         if allow_print:
             print('  "{}"  {:>8} > {:<8}'.format(resp_file, before, after))

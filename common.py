@@ -2,6 +2,7 @@ import os
 
 from tqdm import tqdm
 
+
 RIGHT = 'O'
 CLOSE = 'H'
 WRONG = 'X'
@@ -40,7 +41,7 @@ def get_response_data():
     return response_data
 
 
-def get_easy_response(guess, answer):
+def _get_easy_response(guess, answer):
     if guess == answer:
         return ''.join([RIGHT for _ in answer])
     response = [WRONG for _ in answer]
@@ -68,7 +69,7 @@ def get_easy_response(guess, answer):
     return ''.join(response)
 
 
-def get_master_response(guess, answer):
+def _get_master_response(guess, answer):
     if guess == answer:
         return ''.join([RIGHT for _ in answer])
     response = ''
@@ -105,9 +106,9 @@ def get_response(guess, answer, master):
         return response_data[guess][answer]
     response = ''
     if master:
-        response = get_master_response(guess, answer)
+        response = _get_master_response(guess, answer)
     else:
-        response = get_easy_response(guess, answer)
+        response = _get_easy_response(guess, answer)
     if guess not in response_data:
         response_data[guess] = {}
     response_data[guess][answer] = response
@@ -117,6 +118,8 @@ def get_response(guess, answer, master):
 
 def filter_remaining(remaining, guess, response, master, liar=False):
     filtered = []
+    if response == ''.join(RIGHT for _ in guess):
+        return [guess]
     for answer in remaining:
         this_response = get_response(guess, answer, master)
         if liar:

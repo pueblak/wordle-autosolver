@@ -36,6 +36,7 @@ setup(
         'Dordle(zaratustra.itch.io/dordle), Quordle(www.quordle.com), '
         'Octordle(octordle.com), Sedecordle(www.sedecordle.com), '
         'Duotrigordle(duotrigordle.com), 64ordle(64ordle.au), '
-        'Nordle(www.nordle.us), and Wordzy(wordzmania.com/Wordzy)'
+        'Nordle(www.nordle.us), Wordzy(wordzmania.com/Wordzy), '
+        'and Fibble(fibble.xyz)'
     )
 )

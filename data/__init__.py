@@ -109,7 +109,7 @@ def clean_all_data():
             deleted += os.path.getsize(data_path + filename)
         except FileNotFoundError:
             pass
-        with open(filename, 'w') as file:
+        with open(data_path + filename, 'w') as file:
             dump({}, file)
         added += os.path.getsize(data_path + filename)
     print('Data cleaned. {} deleted.'.format(format_bytes(deleted - added)))

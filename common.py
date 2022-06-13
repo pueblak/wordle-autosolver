@@ -4,8 +4,8 @@ from tqdm import tqdm
 
 
 RIGHT = 'O'
-CLOSE = 'H'
-WRONG = 'X'
+CLOSE = '+'
+WRONG = '.'
 
 response_data = {}
 response_data_updated = False
@@ -201,7 +201,7 @@ def best_avg_guesses(answers, guesses=[], master=False, show=False,
 
 def precalculate_responses(guesses, answers, master):
     global response_data, response_data_updated
-    print('Precalculating responses...')
+    print('Precalculating all possible responses...')
     response_data = dict([(guess, {}) for guess in guesses])
     for guess in tqdm(guesses, ascii=progress):
         for answer in answers:

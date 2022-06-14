@@ -64,7 +64,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
             "\nSuggested starting word is {}\n".format(actual_best.upper()))
     while any(len(r) > 1 for r in remaining):
         if num_boards > 1 and allow_print:
-            print("\nSolved {:>2d}/{:<2d} boards: {}".format(
+            print("\nSolved {:>2d}/{:<2d} boards: [{}]".format(
                 solve_count, num_boards, ', '.join(solved).upper()))
         if any(x not in entered for x in starting_guesses):
             for guess in starting_guesses:
@@ -92,8 +92,8 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                 best[board] = []
                 continue
             if allow_print and auto_response != manual_response:
-                print("  Response was '{}' on board {}".format(response,
-                                                               board + 1))
+                print("  Response was \"{}\" on board {}".format(response,
+                                                                 board + 1))
             # just in case filtering results in an empty list, keep one element
             valid_answer = rem[0]
             rem = filter_remaining(rem, guess, response, master, liar)

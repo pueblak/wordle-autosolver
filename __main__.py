@@ -94,6 +94,8 @@ def parse_command_line_args():
     start, sim, inf, stro, best, quiet) = parse_command_line_args()
 (answers, guesses, n_guesses, freq,
     saved_best, resp_data) = load_all_data(hard, master, liar, nyt, not quiet)
+if len(resp_data) == 0:
+    precalculate_responses(guesses, answers, master)
 set_response_data(resp_data)
 if best:
     tree = {}
@@ -135,6 +137,7 @@ if site is not None:
         (addr, n_games, hard, master, liar,
             auto_guess, auto_response) = site_info[site]
     n_games = open_website(addr, n_games, master, inf, quiet)
+    lim = max(lim, n_games)
 if inf:
     lim = n_games + 1
     if site == 'wordzy':
@@ -193,6 +196,8 @@ while n_games <= lim:
         sol = solution[0]
         score = n_games + 5 - len(solution[1]) - int(site == 'wordzy')
         print('\n  SOLUTION={}\n     SCORE={}\n'.format(sol, score))
+    if n_games == lim:
+        break
     if site == 'wordzy':
         time.sleep(8)
         dx = get_driver().find_element(By.CLASS_NAME, 'share-container')
@@ -217,10 +222,10 @@ while n_games <= lim:
             n_games *= 2
         if n_games not in wordle_sites:
             site = 'nordle'
-            addr, _, master, auto_guess, auto_response = site_info[site]
+            addr, _, _, _, _, auto_guess, auto_response = site_info[site]
         else:
             site = wordle_sites[n_games]
-            (addr, n_games, master,
+            (addr, n_games, hard, master, liar,
              auto_guess, auto_response) = site_info[site]
         open_website(addr, n_games, master, inf, quiet)
     elif site is not None and liar and inf:

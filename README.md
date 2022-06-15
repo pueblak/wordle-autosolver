@@ -2,7 +2,7 @@
 A python program that can solve the Wordle word-guessing game and many of its variants.
 
 ## Setup
-You may download and install this package using pip:
+You may download and install this package using pip
 ```bash
 pip install wordle-autosolver
 ```
@@ -38,7 +38,8 @@ optional arguments:
   -continue LIMIT       set this flag to continue playing on multiple boards up to the given number
                         (max 500) -- setting the limit to "-1" will test all possible starting
                         words to find the best one(s) (be aware that this process may be very slow)
-  -endless              use to play the same game over and over
+  -endless              use to play the same game over and over -- when used with "-auto wordzy",
+                        will play Wordzy's Maniac mode where the number of games increment by one
   -challenge            play the daily Wordle, Dordle, Quordle, and Octordle in order, using the
                         answers from each puzzle as the starting words for the next (inspired by
                         YouTube channel Scott Stro-solves)

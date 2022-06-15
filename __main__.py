@@ -4,10 +4,17 @@ from json import load, dump
 
 from tqdm import tqdm
 
-from common import *
-from solver import *
-from auto import *
-from data import *
+
+try:
+    from common import *
+    from solver import *
+    from auto import *
+    from data import *
+except ImportError:
+    from .common import *
+    from .solver import *
+    from .auto import *
+    from .data import *
 
 
 def parse_command_line_args():

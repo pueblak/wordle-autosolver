@@ -10,7 +10,10 @@ try:
 except ImportError:
     print('Failed to import selenium.\n')
 
-from common import *
+try:
+    from common import *
+except ImportError:
+    from .common import *
 
 
 driver = None

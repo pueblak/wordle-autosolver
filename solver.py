@@ -1,7 +1,10 @@
 from random import sample, shuffle
 from itertools import combinations
 
-from common import *
+try:
+    from common import *
+except ImportError:
+    from .common import *
 
 
 simulated_answers = []
@@ -238,6 +241,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
 def manual_guess(remaining, guesses, best, hard, master, endless):
     if hard:
         guesses = remaining[0]
+    print("\n  Suggested guess is {}\n".format(best.upper()))
     guess = input("What was your last guess?\n>>> ").strip().lower()
     while guess not in guesses:
         guess = input("Invalid guess. Try again.\n>>> ").strip().lower()
@@ -257,10 +261,23 @@ def manual_response(guess, remaining, entered, expected, hard, master,
             ).strip().upper()
             rem = filter_remaining(remaining[board], guess, response,
                                    master, liar)
-            while (any(x not in (RIGHT, CLOSE, WRONG) for x in response)
-                    or (len(rem) == 0) or (len(response) != len(guess))):
-                response = input("Invalid response. Try again.\n>>> "
-                                 ).strip().upper()
+            while True:
+                err_message = None
+                if len(response) != len(guess):
+                    err_message = ('Response must be correct length ({}). '
+                                   'Try again.\n>>> ').format(len(guess))
+                elif any(x not in (RIGHT, CLOSE, WRONG) for x in response):
+                    err_message = ('Invalid character in response. '
+                                   'Expected one of: {"{}", "{}", "{}"}. '
+                                   'Try again.\n>>> '
+                                   ).format(RIGHT, CLOSE, WRONG)
+                elif len(rem) == 0:
+                    err_message = ('The given response eliminates all possible'
+                                   ' answers remaining. Are you sure you '
+                                   'entered it correctly? Try again.\n>>>')
+                if err_message is None:
+                    break
+                response = input(err_message).strip().upper()
                 rem = filter_remaining(remaining[board], guess, response,
                                        master, liar)
             yield response, board

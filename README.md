@@ -1,11 +1,16 @@
 # Wordle Solver
-A python program that can solve the Wordle word-guessing game and many of its variants.
+## A python package designed to solve the Wordle word-guessing game and many of its variants.
+
+![Demo](quordle-demo.gif)
 
 ## Setup
 You may download and install this package using pip
 ```bash
 pip install wordle-autosolver
 ```
+Google Chrome and ChromeDriver are also required to be installed on your device. There is a python package that will do this for you called [chromedriver-autoinstaller](https://pypi.org/project/chromedriver-autoinstaller/).
+
+Otherwise, use [this link](https://chromedriver.chromium.org/getting-started) to go to the chromedriver page and follow the installation instructions.
 
 ## Usage
 Use this module to solve Wordle and other similar puzzles. Default behavior requires the user to interact with the program through the console. This program will use the user's guess and the game's response to filter a list of possible answers. It will then check every possible guess the user could make next, and check the size of the answer list after each possible response. The program will then recommend the guesses which have the smallest worst-case response. The "-auto" flag allows the user to automate the entry of guesses and responses by connecting to websites and interacting with them using chromedriver + selenium. Current supported websites include: [Wordle](www.nytimes.com/games/wordle/index.html), [Dordle](zaratustra.itch.io/dordle), [Quordle](www.quordle.com), [Octordle](octordle.com), [Sedecordle](www.sedecordle.com), [Duotrigordle](duotrigordle.com), [64ordle](64ordle.au), [Nordle](www.nordle.us), [Wordzy](wordzmania.com/Wordzy), and [Fibble](fibble.xyz).
@@ -48,7 +53,7 @@ optional arguments:
                         of the response
 ```
 
-## Example
+## Example Console Output
 ```
 $ python -m wordle-autosolver -auto wordle -n 4 -start lucky words
 Loading precalculated data...

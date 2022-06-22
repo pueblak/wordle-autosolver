@@ -10,30 +10,32 @@ try:
     from solver import *
     from auto import *
     from data import *
-except ImportError:
+except ImportError as e:
     from .common import *
     from .solver import *
     from .auto import *
     from .data import *
 
 
-def parse_command_line_args():
+def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
+                                       str, int, bool, bool, bool, bool]:
+    """Parse all command line arguments using `argparse.ArgumentParser`."""
     parser = ArgumentParser(
         description=('Solve a Wordle game on one board or multiple by '
                      'calculating the best guesses at every step.'))
     parser.add_argument('-n', type=int, default=1,
                         help='number of simultaneous games (default: 1)')
     group1 = parser.add_mutually_exclusive_group()
-    group1.add_argument('-nyt', action='store_true',
+    group1.add_argument('-nyt', action='store_true', default=False,
                         help=('only consider answers that are in the New York '
                               'Times official word list'))
-    group1.add_argument('-hard', action='store_true',
+    group1.add_argument('-hard', action='store_true', default=False,
                         help='use if playing on hard mode (default: False)')
-    group1.add_argument('-master', action='store_true',
+    group1.add_argument('-master', action='store_true', default=False,
                         help=('only set this flag if the game does '
                               'not tell you which colors belong to '
                               'which letters (default: False)'))
-    group1.add_argument('-liar', action='store_true',
+    group1.add_argument('-liar', action='store_true', default=False,
                         help=('use if playing Fibble where one letter in each '
                               'response is always a lie (default: False)'))
     group2 = parser.add_mutually_exclusive_group()
@@ -134,15 +136,18 @@ if site == 'wordle':
 auto_guess = manual_guess
 auto_response = manual_response
 if site is not None:
-    if site == 'wordzy':
+    if not hard and site == 'wordle':
+        (addr, n_games, _, master, liar,
+            auto_guess, auto_response) = SITE_INFO[site]
+    elif site == 'wordzy':
         (addr, _, hard, _, liar,
-            auto_guess, auto_response) = site_info[site]
+            auto_guess, auto_response) = SITE_INFO[site]
     elif site == 'nordle':
         (addr, _, hard, master, liar,
-            auto_guess, auto_response) = site_info[site]
+            auto_guess, auto_response) = SITE_INFO[site]
     else:
         (addr, n_games, hard, master, liar,
-            auto_guess, auto_response) = site_info[site]
+            auto_guess, auto_response) = SITE_INFO[site]
     n_games = open_website(addr, n_games, master, inf, quiet)
     lim = max(lim, n_games)
 if inf:
@@ -156,8 +161,8 @@ elif stro:
 
 # main functions to call
 if sim > 0:
-    simulate(saved_best, freq, guesses, answers, start, n_games, hard,
-             master, liar, auto_guess, auto_response, sim, -8, not quiet)
+    simulate(saved_best, freq, answers, guesses, start, n_games, hard,
+             master, liar, sim, show=not quiet)
     exit()
 elif sim == -1:
     best_case = [-8, []]
@@ -166,10 +171,9 @@ elif sim == -1:
         worst_case = load(ordered)
     modified = sorted(answers, key=lambda x: worst_case[x])
     for starter in tqdm(modified, ascii=progress):
-        _, worst = simulate(saved_best, freq, guesses, answers,
+        _, worst = simulate(saved_best, freq, answers, guesses,
                             [starter], n_games, hard, master, liar,
-                            auto_guess, auto_response, len(answers),
-                            best_case[0], False)
+                            len(answers), best_case[0], False)
         if worst == best_case[0]:
             best_case[1].append(starter)
         elif worst > best_case[0]:
@@ -188,15 +192,15 @@ while n_games <= lim:
                     auto_response_fibble(guess, answers, [], [0],
                                          False, False, False, inf))[0][0]
         filtered = filter_remaining(answers, guess, response, False, True)
-        solution = solve_wordle(saved_best, freq, guesses, filtered, start,
+        solution = solve_wordle(saved_best, freq, filtered, guesses, start,
                                 n_games, hard, master, liar, inf,
                                 auto_guess, auto_response, not quiet)
     elif site == 'nordle':
-        solution = solve_wordle({}, freq, n_guesses, answers, start,
+        solution = solve_wordle({}, freq, answers, n_guesses, start,
                                 n_games, hard, master, liar, inf,
                                 auto_guess, auto_response, not quiet)
     else:
-        solution = solve_wordle(saved_best, freq, guesses, answers, start,
+        solution = solve_wordle(saved_best, freq, answers, guesses, start,
                                 n_games, hard, master, liar, inf,
                                 auto_guess, auto_response, not quiet)
     if quiet:
@@ -215,8 +219,12 @@ while n_games <= lim:
                     n_games += 1
                 else:
                     n_games *= 2
+    elif site == 'dordle' and inf:
+        time.sleep(4)
+        get_driver().find_element(value='new_game').click()
+        time.sleep(2)
     elif site == 'quordle' and inf:
-        time.sleep(8)
+        time.sleep(4)
         get_driver().find_element(
             by=By.XPATH,
             value='//*[@id="root"]/div/div[1]/div/button[1]'
@@ -229,11 +237,18 @@ while n_games <= lim:
             n_games *= 2
         if n_games not in wordle_sites:
             site = 'nordle'
-            addr, _, _, _, _, auto_guess, auto_response = site_info[site]
+            addr, _, _, _, _, auto_guess, auto_response = SITE_INFO[site]
         else:
             site = wordle_sites[n_games]
-            (addr, n_games, hard, master, liar,
-             auto_guess, auto_response) = site_info[site]
+            if not hard and site == 'wordle':
+                (addr, n_games, _, master, liar,
+                 auto_guess, auto_response) = SITE_INFO[site]
+            elif site == 'wordzy':
+                (addr, _, hard, _, liar,
+                 auto_guess, auto_response) = SITE_INFO[site]
+            else:
+                (addr, n_games, hard, master, liar,
+                 auto_guess, auto_response) = SITE_INFO[site]
         open_website(addr, n_games, master, inf, quiet)
     elif site is not None and liar and inf:
         get_driver().find_element(

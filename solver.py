@@ -1,5 +1,6 @@
 from random import sample, shuffle
 from itertools import combinations
+from typing import Callable
 
 try:
     from common import *
@@ -7,35 +8,35 @@ except ImportError:
     from .common import *
 
 
-simulated_answers = []
+simulated_answers: list[str] = []
 
-worst_answers = [
+WORST_ANSWERS = [
     'fuzzy', 'epoxy', 'nymph', 'cynic', 'boozy', 'vivid', 'depot', 'movie',
     'their', 'aroma', 'allow', 'tacit', 'swill', 'ferry', 'forgo', 'fewer',
     'lowly', 'foyer', 'flair', 'foray', 'snout', 'bunny', 'hunky', 'funny',
     'boxer', 'baker', 'booby', 'place', 'dizzy', 'fluff'
 ]
-best_starters = [
+BEST_STARTERS = [
     'adobe', 'shave', 'spine', 'shore', 'salve', 'trial', 'snide', 'snare',
-    'sweat', 'shade', 'soapy', 'smite', 'wiser', 'resin', 'scree', 'sonar',
+    'sweat', 'shade', 'soapy', 'smite', 'wiser', 'resin', 'sonar', 'anger',
     'realm', 'lance', 'opera', 'sower', 'ashen', 'atone', 'chase', 'snore',
     'spelt', 'cater', 'shine', 'serif', 'slept', 'suave', 'serum', 'alien',
     'ratio', 'adore', 'louse', 'torus', 'arose', 'slain', 'askew', 'snail',
     'cameo', 'petal', 'beast', 'solve', 'liner', 'salty', 'feast', 'paste',
-    'swear', 'renal', 'nosey', 'tease', 'skate', 'mason', 'slime', 'poise',
-    'lease', 'caste', 'scare', 'islet', 'stole', 'noose', 'rebus', 'lathe',
+    'swear', 'renal', 'nosey', 'skate', 'mason', 'slime', 'poise', 'stray',
+    'caste', 'scare', 'islet', 'stole', 'rebus', 'lathe', 'stove', 'trace',
     'leapt', 'solar', 'swine', 'stead', 'onset', 'miser', 'oaken', 'lager',
     'snarl', 'smart', 'baste', 'snort', 'alike', 'pesto', 'stare', 'inlet',
-    'spiel', 'siren', 'cress', 'loser', 'amuse', 'staid', 'canoe', 'spade',
-    'crest', 'skier', 'sneer', 'aisle', 'scald', 'abode', 'slope', 'alert',
+    'spiel', 'siren', 'loser', 'amuse', 'staid', 'canoe', 'spade', 'snake',
+    'crest', 'skier', 'aisle', 'scald', 'abode', 'slope', 'alert', 'pleat',
     'stake', 'aider', 'snipe', 'shard', 'spire', 'arson', 'slant', 'glare',
     'spare', 'lapse', 'sinew', 'sepia', 'spike', 'taper', 'alter', 'scent',
-    'smote', 'saute', 'easel', 'pause', 'shake', 'roast', 'parse', 'arise',
-    'spied', 'suite', 'shrew', 'heist', 'shire', 'asset', 'saner', 'safer',
+    'smote', 'saute', 'pause', 'shake', 'roast', 'parse', 'arise', 'store',
+    'spied', 'suite', 'shrew', 'heist', 'shire', 'saner', 'safer', 'shied',
     'strap', 'motel', 'stoke', 'stern', 'stave', 'sedan', 'smear', 'slide',
     'risen', 'haste', 'shear', 'super', 'react', 'salon', 'leant', 'screw',
-    'spore', 'regal', 'leash', 'stair', 'poser', 'sleet', 'irate', 'unset',
-    'trace', 'scone', 'shoal', 'shied', 'stale', 'pleat', 'snake', 'stove'
+    'spore', 'regal', 'leash', 'stair', 'poser', 'irate', 'unset', 'stale',
+    'scone', 'shoal', 'prime', 'rusty'
 ]
 
 
@@ -44,9 +45,56 @@ best_starters = [
 ###############################################################################
 
 
-def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
-                 num_boards, hard, master, liar, endless,
-                 auto_guess, auto_response, allow_print=False):
+def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
+                 guesses: list[str], starters: list[str], num_boards: int,
+                 hard: bool, master: bool, liar: bool, endless: bool,
+                 auto_guess: Callable[[list[str], list[str], str, bool, bool,
+                                       bool], str],
+                 auto_response: Callable[[str, list[str], list[str], list[int],
+                                          bool, bool, bool, bool],
+                                         list[tuple[str, int]]],
+                 allow_print=False):
+    """PRIMARY SOLVE FUNCTION - Solves wordle(s) based on the given parameters.
+
+    Args:
+        saved_best:
+            A dict representing the decision tree used to find best guesses
+        freq:
+            A dict mapping all valid guesses to their frequency of use
+        answers:
+            The list of all possible answers
+        guesses:
+            The list of all valid guesses
+        starters:
+            A list of guesses the player wishes to begin with regardless of the
+            game's response (may be empty) -- manual guesses may ignore these
+        num_boards:
+            The number of simultaneous games being played (each guess is made
+            across all boards at once)
+        hard:
+            A boolean value representing whether the game mode is Hard
+        master:
+            A boolean value representing whether the game mode is Wordzy Master
+        liar:
+            A boolean value representing whether the game mode is Fibble
+        endless:
+            A boolean value representing whether the program is in endless mode
+        auto_guess:
+            A function which takes six arguments and returns a str; for an
+            example of what is expected, refer to `manual_guess`
+        auto_response:
+            A function which takes eight arguments and returns a list; for an
+            example of what is expected, refer to `manual_response`
+        allow_print:
+            A boolean value representing whether the program should print info
+            to the console (each guess/response, progress bars, etc.) (default:
+            False)
+
+    Returns:
+        A 2-tuple containing two lists of str: the first list contains the
+        solutions for each board, in order; the second list contains every word
+        guessed by the user (or the program), also in order.
+    """
     if allow_print:
         print(
             '\n\nStarting solver.' + (
@@ -61,7 +109,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
     solved = ['*****' for _ in range(num_boards)]
     solve_count = 0
     subtree = [saved_best for _ in range(num_boards)]
-    actual_best = sample(best_starters, 1)[0]
+    actual_best = sample(BEST_STARTERS, 1)[0]
     if allow_print:
         print(
             "\nSuggested starting word is {}\n".format(actual_best.upper()))
@@ -69,8 +117,8 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
         if num_boards > 1 and allow_print:
             print("\nSolved {:>2d}/{:<2d} boards: [{}]".format(
                 solve_count, num_boards, ', '.join(solved).upper()))
-        if any(x not in entered for x in starting_guesses):
-            for guess in starting_guesses:
+        if any(x not in entered for x in starters):
+            for guess in starters:
                 if guess not in entered:
                     actual_best = guess
                     if allow_print:
@@ -79,7 +127,8 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                                 guess.upper()))
                     break
         elif allow_print and auto_guess != manual_guess:
-            print("\n  Guessing {}...\n".format(
+            print("\n  {} {}...\n".format(
+                'Entering' if actual_best in solved else 'Guessing',
                 actual_best.upper()))
         guess = auto_guess(remaining, guesses, actual_best,
                            hard, master, endless)
@@ -138,7 +187,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                           '' if num_boards == 1 else
                           (' on board ' + str(board + 1)), solution.upper()))
             elif (auto_response != simulated_response or
-                    all(guess in entered for guess in starting_guesses)):
+                    all(guess in entered for guess in starters)):
                 # update tree with best guesses if the game is still unsolved
                 subset = list(subtree[board].keys())  # use any saved answers
                 if len(subset) == 0:
@@ -148,7 +197,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                         resp = get_response(entry, rem[0], False)
                         subset = filter_remaining(subset, entry, resp, False)
                 best[board] = best_guesses(rem, subset, master=master,
-                                           show=allow_print)[:32]
+                                           liar=liar, show=allow_print)[:32]
                 for best_guess in best[board]:
                     if best_guess not in subtree[board]:
                         subtree[board][best_guess] = {}
@@ -168,8 +217,8 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
         # make sure to guess any answers which have been found but not entered
         unentered_answers = (set(solved) & set(answers)) - set(entered)
         if ((len(unentered_answers) > 0 or solve_count < num_boards) and
-                all(guess in entered for guess in starting_guesses)):
-            best_score = len(guesses) * len(remaining)
+                all(guess in entered for guess in starters)):
+            best_score = len(guesses) * num_boards
             # sum collapses 2D list into 1D
             options = (sum(best, []) if len(unentered_answers) == 0
                        else unentered_answers)
@@ -184,7 +233,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                     total = 0
                     for board in range(num_boards):
                         found = set()
-                        worst_case = 0
+                        worst_case = 1
                         if len(remaining[board]) == 1:
                             continue
                         for answer in remaining[board]:
@@ -194,7 +243,7 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                             found.add(response)
                             count = count_remaining(remaining[board],
                                                     next_guess, response,
-                                                    worst_case, master)
+                                                    worst_case, master, liar)
                             if count > worst_case:
                                 worst_case = count
                         total += worst_case
@@ -208,6 +257,8 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
                 solved_board = solved.index(actual_best)
                 if solved_board in expected:
                     expected.remove(solved_board)
+            if allow_print:
+                print("\nBest next guess: {}".format(actual_best.upper()))
     if allow_print:
         print('\nSolve complete.\n')
     if len(unentered_answers) > 0 and auto_guess != manual_guess:
@@ -238,26 +289,75 @@ def solve_wordle(saved_best, freq, guesses, answers, starting_guesses,
 ###############################################################################
 
 
-def manual_guess(remaining, guesses, best, hard, master, endless):
+def manual_guess(remaining: list[str], guesses: list[str], best: str,
+                 hard: bool, master: bool, endless: bool) -> str:
+    """Prompts the user to enter their most recent guess.
+
+    Required Args:
+        remaining:
+            The list of all remaining possible answers
+        guesses:
+            The list of all valid guesses
+        best:
+            The most recently calculated best guess according to the solver
+        hard:
+            A boolean value representing whether the game mode is Hard
+
+    Ignored Args:
+        master:
+            A boolean value representing whether the game mode is Wordzy Master
+        endless:
+            A boolean value representing whether the program is in endless mode
+
+    Returns:
+        The word which was selected as the guess.
+    """
     if hard:
         guesses = remaining[0]
     print("\n  Suggested guess is {}\n".format(best.upper()))
-    guess = input("What was your last guess?\n>>> ").strip().lower()
+    guess = input("  What was your last guess?\n  >>> ").strip().lower()
     while guess not in guesses:
-        guess = input("Invalid guess. Try again.\n>>> ").strip().lower()
+        guess = input("  Invalid guess. Try again.\n  >>> ").strip().lower()
     return guess
 
 
-def manual_response(guess, remaining, entered, expected, hard, master,
-                    liar, endless):
+def manual_response(guess: str, remaining: list[str], entered: list[str],
+                    expected: list[int], hard: bool, master: bool, liar: bool,
+                    endless: bool) -> list[tuple[str, int]]:
+    """Prompts the user to enter the response(s) given by the game.
+
+    Required Args:
+        guess:
+            The most recent guess entered into the game
+        remaining:
+            The list of remaining possible answers
+        master:
+            A boolean value representing whether the game mode is Wordzy Master
+        liar:
+            A boolean value representing whether the game mode is Fibble
+
+    Ignored Args:
+        entered:
+            A list of all words which have been entered into the game so far
+        expected:
+            A list of all board indexes where the answer has not been entered
+        hard:
+            A boolean value representing whether the game mode is Hard
+        endless:
+            A boolean value representing whether the program is in endless mode
+
+    Returns:
+        A list of 2-tuples where the first element is the response and the
+        second element is the index of the board that gave that response.
+    """
     n_games = len(remaining)
     for board in range(n_games):
         if len(remaining[board]) > 1:
             response = input(
-                "What was the response" + (
+                "  What was the response" + (
                     "" if n_games == 1 else
                     " on board {}".format(board + 1)
-                ) + "?\n>>> "
+                ) + "?\n  >>> "
             ).strip().upper()
             rem = filter_remaining(remaining[board], guess, response,
                                    master, liar)
@@ -283,12 +383,41 @@ def manual_response(guess, remaining, entered, expected, hard, master,
             yield response, board
 
 
-def simulated_guess(remaining, guesses, best, hard, master, endless):
+def simulated_guess(remaining: list[str], guesses: list[str], best: str,
+                    hard: bool, master: bool, endless: bool) -> str:
+    """Returns `best` and ignores all other arguments."""
     return best
 
 
-def simulated_response(guess, remaining, entered, expected, hard, master,
-                       liar, endless):
+def simulated_response(guess: str, remaining: list[str], entered: list[str],
+                       expected: list[int], hard: bool, master: bool,
+                       liar: bool, endless: bool) -> list[tuple[str, int]]:
+    """Prompts the program to give response(s) based on the simulated answers.
+
+    Required Args:
+        guess:
+            The most recent guess entered into the game
+        remaining:
+            The list of remaining possible answers
+        entered:
+            A list of all words which have been entered into the game so far
+        expected:
+            A list of all board indexes where the answer has not been entered
+        master:
+            A boolean value representing whether the game mode is Wordzy Master
+
+    Ignored Args:
+        hard:
+            A boolean value representing whether the game mode is Hard
+        liar:
+            A boolean value representing whether the game mode is Fibble
+        endless:
+            A boolean value representing whether the program is in endless mode
+
+    Returns:
+        A list of 2-tuples where the first element is the response and the
+        second element is the index of the board that gave that response.
+    """
     global simulated_answers
     if len(entered) == 1 and len(simulated_answers) != len(remaining):
         simulated_answers = sample(remaining[0], len(remaining))
@@ -300,8 +429,49 @@ def simulated_response(guess, remaining, entered, expected, hard, master,
     return responses
 
 
-def simulate(saved, freq, guesses, answers, start, num_games, hard, master,
-             liar, auto_guess, auto_response, total_sims, best, show):
+def simulate(saved: dict, freq: dict[str, float], answers: list[str],
+             guesses: list[str], start: list[str], num_games: int, hard: bool,
+             master: bool, liar: bool, total_sims: int, best=-8, show=True
+             ) -> tuple[float, int]:
+    """Runs a simulation to collect data about the given parameters.
+
+    Args:
+        saved:
+            A dict representing the decision tree used to find best guesses
+        freq:
+            A dict mapping all valid guesses to their frequency of use
+        answers:
+            The list of all possible answers
+        guesses:
+            The list of all valid guesses
+        starters:
+            A list of guesses the player wishes to begin with regardless of the
+            game's response (may be empty, and manual guesses may ignore these)
+        num_boards:
+            The number of simultaneous games being played (each guess is made
+            across all boards at once)
+        hard:
+            A boolean value representing whether the game mode is Hard
+        master:
+            A boolean value representing whether the game mode is Wordzy Master
+        liar:
+            A boolean value representing whether the game mode is Fibble
+        total_sims:
+            The maximum number of games to simulate when collecting data; when
+            `num_games == 1`, this value cannot be greater than `len(answers)`
+        best:
+            Integer value representing the best worst-case score of all other
+            simulations using different starting parameters (default: -8)
+        show:
+            A boolean value representing whether to show progress bars and more
+            detailed results
+
+    Returns:
+        A 2-tuple where the first element is the average score and the second
+        element is the worst score across all simulations. The score is
+        calculated as `score = num_games + 5 - len(entered)`, where `entered`
+        is the list of all guesses used to solve the game.
+    """
     global simulated_answers
     generated = []
     if num_games == 1:
@@ -310,8 +480,8 @@ def simulate(saved, freq, guesses, answers, start, num_games, hard, master,
             shuffle(generated)
             generated = generated[:total_sims]
         else:
-            generated += worst_answers
-            generated += [ans for ans in answers if ans not in worst_answers]
+            generated += WORST_ANSWERS
+            generated += [ans for ans in answers if ans not in WORST_ANSWERS]
     elif total_sims < len(answers)**num_games:
         while len(generated) < total_sims:
             answer_list = ','.join(sample(answers, num_games))
@@ -323,8 +493,10 @@ def simulate(saved, freq, guesses, answers, start, num_games, hard, master,
     failures = []
     starting = str(start)[1:-1]
     if show:
-        print("Simulating {} unique games with starting word(s) {}...".format(
-            len(generated), 'ratio' if starting == '' else starting))
+        print("Simulating {} unique games{}...".format(
+            len(generated),
+            '' if starting == '' else ' with starting word(s) ' + starting)
+        )
     for answer_list in tqdm(generated, ascii=progress,
                             leave=False, disable=not show):
         simulated_answers = answer_list.split(',')
@@ -341,6 +513,8 @@ def simulate(saved, freq, guesses, answers, start, num_games, hard, master,
         if score < 0:
             failures.append(answer_list)
         scores[score] += 1
+    avg = sum(score * count for score, count in scores.items()) / total_sims
+    worst = min(scores.keys())
     if show:
         print('\n\nSimulation complete.\n\n SCORE | COUNT | %TOTAL')
         for score in range(-8, 6):
@@ -348,12 +522,8 @@ def simulate(saved, freq, guesses, answers, start, num_games, hard, master,
                 count = scores[score]
                 print('{:^7d}|{:^7d}| {:<.4f}'.format(score, count,
                                                       count / total_sims))
-        print()
-    avg = sum(score * count for score, count in scores.items()) / total_sims
-    if show:
-        print("AVERAGE = {:.2f}".format(avg))
+        print("\nAVERAGE = {:.2f}".format(avg))
         if len(failures) < 64:
             print("FAILURES = {}".format(str(failures)))
         print()
-    worst = min(scores.keys())
     return avg, worst

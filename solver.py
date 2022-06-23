@@ -527,3 +527,11 @@ def simulate(saved: dict, freq: dict[str, float], answers: list[str],
             print("FAILURES = {}".format(str(failures)))
         print()
     return avg, worst
+
+
+if __name__ == '__main__':
+    try:
+        from driver import main
+    except ImportError as e:
+        from .driver import main
+    main()

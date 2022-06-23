@@ -1,1 +1,1 @@
-__all__ = ['common', 'solver', 'auto', 'data']
+__all__ = ['driver', 'common', 'solver', 'auto', 'data']

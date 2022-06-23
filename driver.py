@@ -98,7 +98,8 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
     return ret
 
 
-def main():
+def main() -> None:
+    """Main entry point into the program."""
     # main variable initializations
     (n_games, hard, master, liar, site, lim, nyt,
         start, sim, inf, stro, best, quiet) = parse_command_line_args()

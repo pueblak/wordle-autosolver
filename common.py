@@ -2,6 +2,7 @@ import os
 from typing import Union, Optional
 
 from tqdm import tqdm
+from termcolor import colored
 
 
 RIGHT = 'O'
@@ -13,6 +14,9 @@ response_data_updated: bool = False
 best_guess_updated: bool = False
 is_ms_os: bool = os.name == 'nt'
 progress: Optional[str] = '__...:::!!|' if is_ms_os else None
+
+if is_ms_os:
+    os.system('color')
 
 
 def set_best_guess_updated(value=True) -> None:
@@ -78,6 +82,20 @@ def get_response_data() -> dict[str, dict[str, str]]:
         `response_data['alert']['olive'] == '.O+..'` should return `True`.)
     """
     return response_data
+
+
+def colored_response(guess: str, response: str) -> str:
+    """Returns colored text to match the given guess and response"""
+    text = ''
+    for letter, symbol in zip(guess.upper(), response):
+        if symbol == RIGHT:
+            text += colored(letter, 'grey',
+                            'on_cyan' if is_ms_os else 'on_green')
+        elif symbol == CLOSE:
+            text += colored(letter, 'grey', 'on_yellow')
+        else:
+            text += colored(letter, 'white', 'on_grey')
+    return text
 
 
 def _get_easy_response(guess: str, answer: str) -> str:
@@ -254,8 +272,7 @@ def count_remaining(remaining: list[str], guess: str, response: str,
         The number of answers consistent with the given guess and response. If
         this value would be greater than `limit`, instead return `limit + 1`.
     """
-    if limit is None:
-        limit = len(remaining)
+    limit = len(remaining)
     count = 0
     for answer in remaining:
         this_response = get_response(guess, answer, master)
@@ -272,8 +289,9 @@ def count_remaining(remaining: list[str], guess: str, response: str,
 
 
 def best_guesses(answers: list[str], guesses: Optional[list[str]] = None,
-                 max_limit=-1, master=False, liar=False, show=False,
-                 return_all=False) -> Union[list[str], dict[str, int]]:
+                 max_limit: Optional[int] = None, master=False, liar=False,
+                 show=False, return_all=False
+                 ) -> Union[list[str], dict[str, int]]:
     """Finds the best guesses to narrow down the remaining possible answers.
 
     This function minimizes the worst-case scenario for every legal guess.
@@ -314,7 +332,7 @@ def best_guesses(answers: list[str], guesses: Optional[list[str]] = None,
     """
     if guesses is None:
         guesses = answers
-    if max_limit == -1:
+    if max_limit is None:
         max_limit = len(answers)
     worst_case = dict([(x, 0) for x in guesses])
     score = dict([(x, {}) for x in guesses])
@@ -388,7 +406,7 @@ def best_avg_guesses(answers: list[str], guesses: Optional[list[str]] = None,
             response = get_response(guess, answer, master)
             if response not in count[guess]:
                 count[guess][response] = count_remaining(answers, guess,
-                                                         response, 0,
+                                                         response, None,
                                                          master, liar)
             average[guess] += count[guess][response]
         average[guess] /= len(answers)

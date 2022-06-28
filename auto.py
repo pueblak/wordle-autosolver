@@ -71,8 +71,10 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
     if 'wordzmania' in website and master:
         website += 'Master'
     time.sleep(3)
-    if any(x in website for x in ('octordle', 'sedecordle', '64ordle')):
+    if any(x in website for x in ('sedecordle', '64ordle')):
         website += '?mode=' + ('free' if endless else 'daily')
+    elif 'octordle' in website:
+        website += 'free' if endless else 'daily'
     elif 'quordle' in website and endless:
         website += 'practice'
     elif 'fibble' in website and endless:

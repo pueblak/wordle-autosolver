@@ -10,7 +10,7 @@ try:
     from solver import *
     from auto import *
     from data import *
-except ImportError as e:
+except ImportError:
     from .common import *
     from .solver import *
     from .auto import *

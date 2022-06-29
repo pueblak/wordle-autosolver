@@ -1,4 +1,4 @@
-from random import sample, shuffle
+from random import sample, shuffle, choice
 from itertools import combinations
 from typing import Callable
 
@@ -53,8 +53,8 @@ def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
                  auto_response: Callable[[str, list[str], list[str], list[int],
                                           bool, bool, bool, bool],
                                          list[tuple[str, int]]],
-                 allow_print=False):
-    """PRIMARY SOLVE FUNCTION - Solves wordle(s) based on the given parameters.
+                 play=False, allow_print=False):
+    """PRIMARY SOLVE FUNCTION - Solves Wordle(s) based on the given parameters.
 
     Args:
         saved_best:
@@ -85,6 +85,9 @@ def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
         auto_response:
             A function which takes eight arguments and returns a list; for an
             example of what is expected, refer to `manual_response`
+        play:
+            A boolean value representing whether the user is playing the
+            built-in Wordle game
         allow_print:
             A boolean value representing whether the program should print info
             to the console (each guess/response, progress bars, etc.) (default:
@@ -109,22 +112,21 @@ def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
     solved = ['*****' for _ in range(num_boards)]
     solve_count = 0
     subtree = [saved_best for _ in range(num_boards)]
-    actual_best = sample(BEST_STARTERS, 1)[0]
-    if allow_print:
-        print(
-            "\nSuggested starting word is {}\n".format(actual_best.upper()))
-    while any(len(r) > 1 for r in remaining):
-        if num_boards > 1 and allow_print:
+    actual_best = choice(BEST_STARTERS)
+    if allow_print and not play:
+        print("\nSuggested starting word is {}\n".format(actual_best.upper()))
+    while (any(len(r) > 1 for r in remaining) or
+           (play and not all(x in entered for x in solved))):
+        if num_boards > 1 and allow_print and not play:
             print("\nSolved {:>2d}/{:<2d} boards: [{}]".format(
                 solve_count, num_boards, ', '.join(solved).upper()))
         if any(x not in entered for x in starters):
             for guess in starters:
                 if guess not in entered:
                     actual_best = guess
-                    if allow_print:
-                        print(
-                            "\n  Predetermined guess is {}\n".format(
-                                guess.upper()))
+                    if allow_print and not play:
+                        print("\n  Predetermined guess is {}\n"
+                              .format(guess.upper()))
                     break
         elif allow_print and auto_guess != manual_guess:
             print("\n  {} {}...\n".format(
@@ -137,84 +139,14 @@ def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
         for response, board in auto_response(guess, remaining, entered,
                                              expected, hard, master, liar,
                                              endless):
-            rem = remaining[board]  # simply used to shorten "remaining[board]"
             if all(x == RIGHT for x in response) and board in expected:
                 expected.remove(board)
-            if len(rem) == 1:
-                best[board] = []
-                continue
-            if allow_print and auto_response != manual_response:
-                print("  Response was \"{}\" on board {}".format(response,
-                                                                 board + 1))
-            # just in case filtering results in an empty list, keep one element
-            valid_answer = rem[0]
-            rem = filter_remaining(rem, guess, response, master, liar)
-            if len(rem) == 0:  # response does not match any known answers
-                if allow_print:
-                    print("\n\nBOARD {} USES A NEW WORD\n\n".format(board + 1))
-                rem = guesses  # create a new list using all words
-                # valid_answer only holds true up to the previous guess
-                for entry in entered[:-1]:
-                    resp = get_response(entry, valid_answer, master)
-                    rem = filter_remaining(rem, entry, resp, master, liar)
-                # now filter the new list using the current guess and response
-                rem = filter_remaining(rem, guess, response, master, liar)
-            if len(rem) == 0:  # response STILL does not match
-                exit('ERROR: BAD RESPONSE ON BOARD {}: {}'.format(board + 1,
-                                                                  response))
-            if num_boards > 1:
-                for index in range(len(response)):
-                    if all(r[index] == rem[0][index] for r in rem):
-                        pattern = solved[board]
-                        solved[board] = (pattern[:index] + rem[0][index]
-                                         + pattern[index + 1:])
-            # update subtree (and by extension, also saved_best)
-            if guess not in subtree[board]:
-                subtree[board][guess] = {}
-                set_best_guess_updated()
-            if response not in subtree[board][guess]:
-                subtree[board][guess][response] = {}
-                set_best_guess_updated()
-            subtree[board] = subtree[board][guess][response]
-            # print best guesses (or the answer) to the console
-            best[board] = []
-            if len(rem) == 1:
-                solution = rem[0]
-                solved[board] = solution
                 solve_count += 1
-                if allow_print:
-                    print("\n    The answer{} is {}\n".format(
-                          '' if num_boards == 1 else
-                          (' on board ' + str(board + 1)), solution.upper()))
-            elif (auto_response != simulated_response or
-                    all(guess in entered for guess in starters)):
-                # update tree with best guesses if the game is still unsolved
-                subset = list(subtree[board].keys())  # use any saved answers
-                if len(subset) == 0:
-                    subset = guesses  # default to the entire allowed word list
-                if hard:
-                    for entry in entered:
-                        resp = get_response(entry, rem[0], False)
-                        subset = filter_remaining(subset, entry, resp, False)
-                best[board] = best_guesses(rem, subset, master=master,
-                                           liar=liar, show=allow_print)[:32]
-                for best_guess in best[board]:
-                    if best_guess not in subtree[board]:
-                        subtree[board][best_guess] = {}
-                        set_best_guess_updated()
-                best[board].sort(key=lambda x: freq[x], reverse=True)
-                if allow_print:
-                    print('  Best guess(es){}: {}'.format(
-                        '' if num_boards == 1 else
-                        (' on board ' + str(board + 1)),
-                        (', '.join(best[board][:8]).upper() +
-                            ('' if len(best[board]) <= 8 else ', ...'))
-                        ))
-                    print('    {} possible answers{}'.format(len(rem),
-                          (': ' + str(', '.join(rem)).upper())
-                           if (len(rem) <= 9) else ''))
-            remaining[board] = rem
-        # make sure to guess any answers which have been found but not entered
+            best[board], remaining[board], subtree[board] = parse_response(
+                guess, response, board, entered, solved, remaining[board],
+                guesses, num_boards, starters, subtree[board], freq,
+                auto_response, hard, master, liar, play, allow_print)
+        # recommend guessing any answers which have been found but not entered
         unentered_answers = (set(solved) & set(answers)) - set(entered)
         if ((len(unentered_answers) > 0 or solve_count < num_boards) and
                 all(guess in entered for guess in starters)):
@@ -250,18 +182,17 @@ def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
                     if total < best_score:
                         best_score = total
                         actual_best = next_guess
-                # if no unentered answer narrows down the pool, don't use one
-                if best_score == sum(len(r) for r in remaining):
-                    actual_best = sum(best, [])[0]
             if actual_best in unentered_answers:
                 solved_board = solved.index(actual_best)
                 if solved_board in expected:
                     expected.remove(solved_board)
-            if allow_print:
-                print("\nBest next guess: {}".format(actual_best.upper()))
+            if allow_print and not play:
+                print("\n  Best next guess: {}".format(actual_best.upper()))
+    # function complete -- print any final information the user might need
     if allow_print:
-        print('\nSolve complete.\n')
+        print('\n{} complete.\n'.format('Game' if play else 'Solve'))
     if len(unentered_answers) > 0 and auto_guess != manual_guess:
+        # if in "auto" mode, and all answers are known, enter them one by one
         if allow_print:
             print('Entering all remaining answers... ({} total)'.format(
                 len(unentered_answers)))
@@ -279,9 +210,93 @@ def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
             auto_guess(remaining, guesses, answer, hard, master, endless)
             entered.append(answer)
     if len(solved) > 4 and auto_guess == manual_guess and allow_print:
+        print("\nSOLUTIONS:")
         for index, answer in enumerate(solved):
             print("{:>4d}. {}".format(index + 1, answer))
     return solved, entered
+
+
+def parse_response(guess: str, response: str, board: int, entered: list[str],
+                   solved: list[str], answers: list[str], guesses: list[str],
+                   num_boards: int, starters: list[str], subtree: dict,
+                   freq: dict[str, float], auto_response: Callable, hard: bool,
+                   master: bool, liar: bool, play: bool, allow_print: bool
+                   ) -> tuple[list[str], list[str]]:
+    if (allow_print and
+            (play or (auto_response != manual_response
+                      and len(answers) > 1))):
+        print("  Response was \"{}\" on board {}"
+              .format(colored_response(guess, response), board + 1))
+    if len(answers) == 1:  # this board has already been solved
+        return [], answers, subtree
+    # just in case filtering results in an empty list, keep one element
+    valid_answer = answers[0]
+    answers = filter_remaining(answers, guess, response, master, liar)
+    if len(answers) == 0:  # response does not match any known answers
+        if allow_print:
+            print("\n\nBOARD {} USES A NEW WORD\n\n".format(board + 1))
+        answers = guesses  # create a new list using all words
+        # valid_answer only holds true up to the previous guess
+        for entry in entered[:-1]:
+            resp = get_response(entry, valid_answer, master)
+            answers = filter_remaining(answers, entry, resp, master, liar)
+        # now filter the new list using the current guess and response
+        answers = filter_remaining(answers, guess, response, master, liar)
+    if len(answers) == 0:  # response STILL does not match
+        exit('ERROR: BAD RESPONSE ON BOARD {}: {}'
+             .format(board + 1, response))
+    if num_boards > 1:
+        for index in range(len(response)):
+            if all(r[index] == answers[0][index] for r in answers):
+                pattern = solved[board]
+                solved[board] = (pattern[:index] + answers[0][index]
+                                 + pattern[index + 1:])
+    # update subtree (and by extension, also saved_best)
+    if guess not in subtree:
+        subtree[guess] = {}
+        set_best_guess_updated()
+    if response not in subtree[guess]:
+        subtree[guess][response] = {}
+        set_best_guess_updated()
+    subtree = subtree[guess][response]
+    # print best guesses (or the answer) to the console
+    best = []
+    if len(answers) == 1:
+        solution = answers[0]
+        solved[board] = solution
+        if allow_print and not play:
+            print("\n    The answer{} is {}\n".format(
+                    '' if num_boards == 1 else
+                    (' on board ' + str(board + 1)), solution.upper()))
+        return answers, answers, subtree
+    elif (auto_response != simulated_response or
+            all(guess in entered for guess in starters)):
+        # update tree with best guesses if the game is still unsolved
+        subset = list(subtree.keys())  # use any saved answers
+        if len(subset) == 0:
+            subset = guesses  # default to the entire allowed word list
+        if hard:
+            for entry in entered:
+                resp = get_response(entry, answers[0], False)
+                subset = filter_remaining(subset, entry, resp, False)
+        best = sorted(
+            best_guesses(answers, subset, -1, master, liar, allow_print),
+            key=lambda x: freq[x], reverse=True)
+        for best_guess in best[:16]:  # limit the size to limit memory usage
+            if best_guess not in subtree:
+                subtree[best_guess] = {}
+                set_best_guess_updated()
+        if allow_print and not play:
+            print('  Best guess(es){}: {}'.format(
+                '' if num_boards == 1 else
+                (' on board ' + str(board + 1)),
+                (', '.join(best[:8]).upper() +
+                    ('' if len(best) <= 8 else ', ...'))
+                ))
+            print('    {} possible answers{}'.format(len(answers),
+                  (': ' + str(', '.join(answers)).upper())
+                   if (len(answers) <= 9) else ''))
+    return best, answers, subtree
 
 
 ###############################################################################
@@ -290,7 +305,7 @@ def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
 
 
 def manual_guess(remaining: list[str], guesses: list[str], best: str,
-                 hard: bool, master: bool, endless: bool) -> str:
+                 hard: bool, master: bool, endless: bool, help=False) -> str:
     """Prompts the user to enter their most recent guess.
 
     Required Args:
@@ -303,6 +318,10 @@ def manual_guess(remaining: list[str], guesses: list[str], best: str,
         hard:
             A boolean value representing whether the game mode is Hard
 
+    Optional Args:
+        help:
+            A boolean value representing whether to show the best next guess
+
     Ignored Args:
         master:
             A boolean value representing whether the game mode is Wordzy Master
@@ -314,9 +333,14 @@ def manual_guess(remaining: list[str], guesses: list[str], best: str,
     """
     if hard:
         guesses = remaining[0]
-    print("\n  Suggested guess is {}\n".format(best.upper()))
-    guess = input("  What was your last guess?\n  >>> ").strip().lower()
+    if help:
+        print("\n  Best guess is {}\n".format(best.upper()))
+    guess = input("  What is your next guess?\n    (Enter '!help' to see "
+                  "the best guess)\n  >>> ").strip().lower()
     while guess not in guesses:
+        if guess == '!help':
+            return manual_guess(remaining, guesses, best, hard, master,
+                                endless, True)
         guess = input("  Invalid guess. Try again.\n  >>> ").strip().lower()
     return guess
 

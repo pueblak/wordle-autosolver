@@ -10,7 +10,7 @@ try:
     from solver import *
     from auto import *
     from data import *
-except ImportError as e:
+except ImportError:
     from .common import *
     from .solver import *
     from .auto import *
@@ -39,6 +39,9 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
                         help=('use if playing Fibble where one letter in each '
                               'response is always a lie (default: False)'))
     group2 = parser.add_mutually_exclusive_group()
+    group2.add_argument('-play', action='store_true',
+                        help=('set this flag to play a game of Wordle using '
+                              'the current console'))
     group2.add_argument('-auto', choices=['wordle', 'wordzy', 'dordle',
                                           'quordle', 'octordle', 'sedecordle',
                                           'duotrigordle', '64ordle', 'nordle',
@@ -94,7 +97,8 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
         exit()
     lim = max(min(args.board_limit, 500), args.n)
     ret = (args.n, args.hard, args.master, args.liar, args.site, lim, args.nyt,
-           args.start, args.sim, args.inf, args.stro, args.best, args.quiet)
+           args.start, args.sim, args.inf, args.stro, args.best, args.quiet,
+           args.play)
     return ret
 
 
@@ -102,12 +106,10 @@ def main() -> None:
     """Main entry point into the program."""
     # main variable initializations
     (n_games, hard, master, liar, site, lim, nyt,
-        start, sim, inf, stro, best, quiet) = parse_command_line_args()
+        start, sim, inf, stro, best, quiet, play) = parse_command_line_args()
     (answers, guesses, n_guesses, freq,
         saved_best, resp_data) = load_all_data(hard, master, liar, nyt,
                                                not quiet)
-    if len(resp_data) == 0:
-        precalculate_responses(guesses, answers, master)
     set_response_data(resp_data)
     if best:
         tree = {}
@@ -137,7 +139,7 @@ def main() -> None:
         if liar:
             site = 'fibble'
     auto_guess = manual_guess
-    auto_response = manual_response
+    auto_response = simulated_response if play else manual_response
     if site is not None:
         if not hard and site == 'wordle':
             (addr, n_games, _, master, liar,
@@ -166,7 +168,6 @@ def main() -> None:
     if sim > 0:
         simulate(saved_best, freq, answers, guesses, start, n_games, hard,
                  master, liar, sim, show=not quiet)
-        exit()
     elif sim == -1:
         best_case = [-8, []]
         worst_case = {}
@@ -183,6 +184,10 @@ def main() -> None:
                 best_case[0] = worst
                 best_case[1] = [starter]
         print(best_case)
+    if sim != 0:
+        save_all_data(hard, master, liar, get_best_guess_updated(), saved_best,
+                      get_response_data_updated(), get_response_data(), nyt,
+                      not quiet)
         exit()
     solution = [], []
     while n_games <= lim:
@@ -198,15 +203,15 @@ def main() -> None:
             filtered = filter_remaining(answers, guess, response, False, True)
             solution = solve_wordle(saved_best, freq, filtered, guesses, start,
                                     n_games, hard, master, liar, inf,
-                                    auto_guess, auto_response, not quiet)
+                                    auto_guess, auto_response, play, not quiet)
         elif site == 'nordle':
             solution = solve_wordle({}, freq, answers, n_guesses, start,
                                     n_games, hard, master, liar, inf,
-                                    auto_guess, auto_response, not quiet)
+                                    auto_guess, auto_response, play, not quiet)
         else:
             solution = solve_wordle(saved_best, freq, answers, guesses, start,
                                     n_games, hard, master, liar, inf,
-                                    auto_guess, auto_response, not quiet)
+                                    auto_guess, auto_response, play, not quiet)
         if quiet:
             sol = solution[0]
             score = n_games + 5 - len(solution[1]) - int(site == 'wordzy')

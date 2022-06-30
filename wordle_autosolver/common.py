@@ -84,10 +84,11 @@ def get_response_data() -> dict[str, dict[str, str]]:
     return response_data
 
 
-def colored_response(guess: str, response: str) -> str:
+def colored_response(guess: str, response: str, master=False) -> str:
     """Returns colored text to match the given guess and response"""
     text = ''
-    for letter, symbol in zip(guess.upper(), response):
+    letters = response if master else guess.upper()
+    for letter, symbol in zip(letters, response):
         if symbol == RIGHT:
             text += colored(letter, 'grey',
                             'on_cyan' if is_ms_os else 'on_green')
@@ -179,7 +180,7 @@ def _get_master_response(guess: str, answer: str) -> str:
     return response
 
 
-def get_response(guess: str, answer: str, master: bool) -> str:
+def get_response(guess: str, answer: str, master: bool, use_cache=True) -> str:
     """Gets the expected response based on the version of Wordle being played.
 
     Args:
@@ -189,6 +190,9 @@ def get_response(guess: str, answer: str, master: bool) -> str:
             A potential answer word to be tested
         master:
             A boolean value representing whether the game mode is Wordzy Master
+        use_cache:
+            A boolean value representing whether to use previously-calculated
+            response data being stored by the program (default: True)
 
     Returns:
         A string represention of the expected response.
@@ -196,22 +200,23 @@ def get_response(guess: str, answer: str, master: bool) -> str:
     global response_data, response_data_updated
     # Note: this use of memoization appears to speed up calculations by a
     #       factor of 10, but it also uses between 0.4 and 1.2GB of storage
-    if guess in response_data and answer in response_data[guess]:
+    if use_cache and guess in response_data and answer in response_data[guess]:
         return response_data[guess][answer]
     response = ''
     if master:
         response = _get_master_response(guess, answer)
     else:
         response = _get_easy_response(guess, answer)
-    if guess not in response_data:
-        response_data[guess] = {}
-    response_data[guess][answer] = response
-    response_data_updated = True
+    if use_cache:
+        if guess not in response_data:
+            response_data[guess] = {}
+        response_data[guess][answer] = response
+        response_data_updated = True
     return response
 
 
 def filter_remaining(remaining: list[str], guess: str, response: str,
-                     master: bool, liar=False) -> list[str]:
+                     master: bool, liar=False, use_cache=True) -> list[str]:
     """Filters a given list of answers based on the given guess and response.
 
     Args:
@@ -226,6 +231,9 @@ def filter_remaining(remaining: list[str], guess: str, response: str,
         liar:
             A boolean value representing whether the game mode is Fibble
             (default: False)
+        use_cache:
+            A boolean value representing whether to use previously-calculated
+            response data being stored by the program (default: True)
 
     Returns:
         A new list which only includes answers that are consistent with the
@@ -235,7 +243,7 @@ def filter_remaining(remaining: list[str], guess: str, response: str,
     if response == ''.join(RIGHT for _ in guess):
         return [guess]
     for answer in remaining:
-        this_response = get_response(guess, answer, master)
+        this_response = get_response(guess, answer, master, use_cache)
         if liar:
             # check that exactly one letter in the response is wrong
             if 1 == sum(int(this_response[n] != response[n])
@@ -247,8 +255,8 @@ def filter_remaining(remaining: list[str], guess: str, response: str,
 
 
 def count_remaining(remaining: list[str], guess: str, response: str,
-                    limit: Optional[int] = None, master=False, liar=False
-                    ) -> int:
+                    limit: Optional[int] = None, master=False, liar=False,
+                    use_cache=True) -> int:
     """Counts the number of answers that are consistent with the given info.
 
     Args:
@@ -267,15 +275,19 @@ def count_remaining(remaining: list[str], guess: str, response: str,
         liar:
             A boolean value representing whether the game mode is Fibble
             (default: False)
+        use_cache:
+            A boolean value representing whether to use previously-calculated
+            response data being stored by the program (default: True)
 
     Returns:
         The number of answers consistent with the given guess and response. If
         this value would be greater than `limit`, instead return `limit + 1`.
     """
-    limit = len(remaining)
+    if limit is None:
+        limit = len(remaining)
     count = 0
     for answer in remaining:
-        this_response = get_response(guess, answer, master)
+        this_response = get_response(guess, answer, master, use_cache)
         if liar:
             # check that exactly one letter in the response is wrong
             if 1 == sum(int(this_response[n] != response[n])

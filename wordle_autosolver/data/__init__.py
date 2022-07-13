@@ -2,9 +2,9 @@ import os
 from json import load, dump
 
 
-data_path = os.path.relpath(__file__)
-data_path = '/'.join(data_path.split('/' if '/' in data_path else '\\')[:-1])
-data_path += '/'
+DATA_PATH = os.path.relpath(__file__)
+DATA_PATH = '/'.join(DATA_PATH.split('/' if '/' in DATA_PATH else '\\')[:-1])
+DATA_PATH += '/'
 
 
 def format_bytes(num_bytes: int) -> str:
@@ -19,22 +19,22 @@ def format_bytes(num_bytes: int) -> str:
     """
     value = num_bytes
     suffix = ' B'
-    if num_bytes > 2**50:
+    if num_bytes >= 2**50:
         value = num_bytes / 2**50
         suffix = ' PB'
-    elif num_bytes > 2**40:
+    elif num_bytes >= 2**40:
         value = num_bytes / 2**40
         suffix = ' TB'
-    elif num_bytes > 2**30:
+    elif num_bytes >= 2**30:
         value = num_bytes / 2**30
         suffix = ' GB'
-    elif num_bytes > 2**20:
+    elif num_bytes >= 2**20:
         value = num_bytes / 2**20
         suffix = ' MB'
-    elif num_bytes > 2**10:
+    elif num_bytes >= 2**10:
         value = num_bytes / 2**10
         suffix = ' KB'
-    if num_bytes > 2**10:
+    if num_bytes >= 2**10:
         value = '{:.3f}'.format(value)
     return str(value) + suffix
 
@@ -66,24 +66,24 @@ def load_all_data(hard: bool, master: bool, liar: bool, nyt=False,
         frequency of use, dict representing the tree of best guesses, and dict
         holding all precalculated response data.
     """
-    if allow_print:
+    if allow_print:  # pragma: no cover
         print('Loading precalculated data...')
     freq_data = {}
-    with open(data_path + 'freq_map.json', 'r') as data:
+    with open(DATA_PATH + 'freq_map.json', 'r') as data:
         freq_data = load(data)
     ans_file = 'nyt_answers.json' if nyt else 'curated_answers.json'
     answers = []
-    with open(data_path + ans_file, 'r') as curated:
+    with open(DATA_PATH + ans_file, 'r') as curated:
         answers = load(curated)
     guesses = []
-    with open(data_path + 'allowed_guesses.json', 'r') as allowed:
+    with open(DATA_PATH + 'allowed_guesses.json', 'r') as allowed:
         guesses = load(allowed)
     nordle_guesses = []
-    with open(data_path + 'allowed_nordle.json', 'r') as allowed:
+    with open(DATA_PATH + 'allowed_nordle.json', 'r') as allowed:
         nordle_guesses = load(allowed)
     resp_file = 'responses' + ('_master' if master else '') + '.json'
     resp_data = {}
-    with open(data_path + resp_file, 'r') as responses:
+    with open(DATA_PATH + resp_file, 'r') as responses:
         resp_data = load(responses)
     best_guess_file = 'best_guess.json'
     if nyt:
@@ -95,9 +95,9 @@ def load_all_data(hard: bool, master: bool, liar: bool, nyt=False,
     elif liar:
         best_guess_file = 'best_guess_liar.json'
     saved_best = {}
-    with open(data_path + best_guess_file, 'r') as bestf:
+    with open(DATA_PATH + best_guess_file, 'r') as bestf:
         saved_best = load(bestf)
-    if allow_print:
+    if allow_print:  # pragma: no cover
         print('Finished loading.')
     return answers, guesses, nordle_guesses, freq_data, saved_best, resp_data
 
@@ -131,7 +131,7 @@ def save_all_data(hard: bool, master: bool, liar: bool,
             False)
         allow_print:
             A boolean value representing whether to allow print statements"""
-    if allow_print:
+    if allow_print:  # pragma: no cover
         print('Saving all newly discovered data...')
     filename = 'best_guess.json'
     if nyt:
@@ -143,21 +143,21 @@ def save_all_data(hard: bool, master: bool, liar: bool,
     elif liar:
         filename = 'best_guess_liar.json'
     if best_guess_updated:
-        before = format_bytes(os.path.getsize(data_path + filename))
-        with open(data_path + filename, 'w') as bestf:
+        before = format_bytes(os.path.getsize(DATA_PATH + filename))
+        with open(DATA_PATH + filename, 'w') as bestf:
             dump(saved_best, bestf, sort_keys=True, indent=2)
-        after = format_bytes(os.path.getsize(data_path + filename))
+        after = format_bytes(os.path.getsize(DATA_PATH + filename))
         if allow_print:
             print('  "{}"  {:>8} > {:<8}'.format(filename, before, after))
     resp_file = 'responses' + ('_master' if master else '') + '.json'
     if response_data_updated:
-        before = format_bytes(os.path.getsize(data_path + resp_file))
-        with open(data_path + resp_file, 'w') as responses:
+        before = format_bytes(os.path.getsize(DATA_PATH + resp_file))
+        with open(DATA_PATH + resp_file, 'w') as responses:
             dump(response_data, responses, sort_keys=True)
-        after = format_bytes(os.path.getsize(data_path + resp_file))
+        after = format_bytes(os.path.getsize(DATA_PATH + resp_file))
         if allow_print:
             print('  "{}"  {:>8} > {:<8}'.format(resp_file, before, after))
-    if allow_print:
+    if allow_print:  # pragma: no cover
         print('Save complete.')
 
 
@@ -181,12 +181,12 @@ def clean_all_data() -> bool:
     added = 0
     for filename in filenames:
         try:
-            deleted += os.path.getsize(data_path + filename)
-        except FileNotFoundError as e:
+            deleted += os.path.getsize(DATA_PATH + filename)
+        except FileNotFoundError:  # pragma: no cover
             pass  # same as adding 0 to deleted
-        with open(data_path + filename, 'w') as file:
+        with open(DATA_PATH + filename, 'w') as file:
             dump({}, file)
-        added += os.path.getsize(data_path + filename)
+        added += os.path.getsize(DATA_PATH + filename)
     if deleted - added == 0:
         print('Nothing to clean.')
         return False

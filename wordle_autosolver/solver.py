@@ -2,10 +2,18 @@ from random import sample, shuffle, choice
 from itertools import combinations
 from typing import Callable
 
-try:
-    from common import *
-except ImportError:
-    from .common import *
+from tqdm import tqdm
+
+try:  # pragma: no cover
+    from common import RIGHT, CLOSE, WRONG, PROGRESS
+    from common import get_response, filter_remaining
+    from common import colored_response, count_remaining
+    from common import best_guesses, set_best_guess_updated
+except ModuleNotFoundError:  # this is only here to help pytest find the module
+    from wordle_autosolver.common import RIGHT, CLOSE, WRONG, PROGRESS
+    from wordle_autosolver.common import get_response, filter_remaining
+    from wordle_autosolver.common import colored_response, count_remaining
+    from wordle_autosolver.common import best_guesses, set_best_guess_updated
 
 
 simulated_answers: list[str] = []
@@ -90,7 +98,7 @@ def solve_wordle(saved_best: dict, freq: dict[str, float], answers: list[str],
             built-in Wordle game
         allow_print:
             A boolean value representing whether the program should print info
-            to the console (each guess/response, progress bars, etc.) (default:
+            to the console (each guess/response, PROGRESS bars, etc.) (default:
             False)
 
     Returns:
@@ -204,7 +212,7 @@ def _find_best_overall_guess(answers: list[str], guesses: list[str],
             if (len(entered) - len(set(solved) & set(answers)) > 2 and
                     len(unentered_answers) == 0):
                 options = set(guesses) - set(entered)
-            for next_guess in tqdm(options, ascii=progress, leave=False,
+            for next_guess in tqdm(options, ascii=PROGRESS, leave=False,
                                    disable=not allow_print):
                 total = 0
                 for board in range(num_boards):
@@ -352,7 +360,7 @@ def manual_guess(remaining: list[str], guesses: list[str], best: str,
         The word which was selected as the guess.
     """
     if hard:
-        guesses = remaining[0]
+        guesses = set(sum(remaining, []))
     if help:
         print("\n  Best guess is {}\n".format(best.upper()))
     guess = input("  What is your next guess?\n    (Enter '!help' to see "
@@ -365,7 +373,7 @@ def manual_guess(remaining: list[str], guesses: list[str], best: str,
     return guess
 
 
-def manual_response(guess: str, remaining: list[str], entered: list[str],
+def manual_response(guess: str, remaining: list[list[str]], entered: list[str],
                     expected: list[int], hard: bool, master: bool, liar: bool,
                     endless: bool) -> list[tuple[str, int]]:
     """Prompts the user to enter the response(s) given by the game.
@@ -412,7 +420,7 @@ def manual_response(guess: str, remaining: list[str], entered: list[str],
                                    'Try again.\n>>> ').format(len(guess))
                 elif any(x not in (RIGHT, CLOSE, WRONG) for x in response):
                     err_message = ('Invalid character in response. '
-                                   'Expected one of: {"{}", "{}", "{}"}. '
+                                   'Expected one of: "{}", "{}", or "{}". '
                                    'Try again.\n>>> '
                                    ).format(RIGHT, CLOSE, WRONG)
                 elif len(rem) == 0:
@@ -464,7 +472,8 @@ def simulated_response(guess: str, remaining: list[str], entered: list[str],
     """
     global simulated_answers
     if len(entered) == 1 and len(simulated_answers) != len(remaining):
-        simulated_answers = sample(remaining[0], len(remaining))
+        simulated_answers = sample(remaining[0],
+                                   len(remaining))  # pragma: no cover
     responses = []
     for board in expected:
         responses.append(
@@ -507,7 +516,7 @@ def simulate(saved: dict, freq: dict[str, float], answers: list[str],
             Integer value representing the best worst-case score of all other
             simulations using different starting parameters (default: -8)
         show:
-            A boolean value representing whether to show progress bars and more
+            A boolean value representing whether to show PROGRESS bars and more
             detailed results
 
     Returns:
@@ -541,7 +550,7 @@ def simulate(saved: dict, freq: dict[str, float], answers: list[str],
             len(generated),
             '' if starting == '' else ' with starting word(s) ' + starting)
         )
-    for answer_list in tqdm(generated, ascii=progress,
+    for answer_list in tqdm(generated, ascii=PROGRESS,
                             leave=False, disable=not show):
         simulated_answers = answer_list.split(',')
         solved, entered = solve_wordle(saved, freq, guesses, answers, start,
@@ -571,11 +580,3 @@ def simulate(saved: dict, freq: dict[str, float], answers: list[str],
             print("FAILURES = {}".format(str(failures)))
         print()
     return avg, worst
-
-
-if __name__ == '__main__':
-    try:
-        from driver import main
-    except ImportError as e:
-        from .driver import main
-    main()

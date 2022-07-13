@@ -1,12 +1,14 @@
 # Wordle Solver
-## A python package designed to solve the Wordle word-guessing game and many of its variants.
+## A python package designed to solve the popular word-guessing game and many of its variants.
+
+![Python](https://img.shields.io/badge/python-3670A0?style=style-plastic-03650f&logo=python&logoColor=ffdd54) ![Selenium](https://img.shields.io/badge/-selenium-%43B02A?style=style-plastic-03650f&logo=selenium&logoColor=white) ![Google Chrome](https://img.shields.io/badge/Google%20Chrome-4285F4?style=style-plastic-03650f&logo=GoogleChrome&logoColor=white) ![Tests](https://github.com/pueblak/wordle-autosolver/actions/workflows/tests.yml/badge.svg)
 
 ![Wordle Demo](img/wordle-demo.gif)
 
 ## Setup
 You may download and install this package using pip
 ```bash
-pip install wordle-autosolver
+pip install wordle_autosolver
 ```
 Google Chrome and ChromeDriver are also required to be installed on your device. There is a python package that will do this for you called [`chromedriver-autoinstaller`](https://pypi.org/project/chromedriver-autoinstaller/).
 
@@ -19,9 +21,8 @@ Alternatively, if you do not wish to use the auto-solve feature, you may downloa
 ## Usage
 Use this module to solve Wordle and other similar puzzles. Default behavior requires the user to interact with the program through the console. This program will use the user's guess and the game's response to filter a list of possible answers. It will then check every possible guess the user could make next, and check the size of the answer list after each possible response. The program will then recommend the guesses which have the smallest worst-case response. The "-auto" flag allows the user to automate the entry of guesses and responses by connecting to websites and interacting with them using chromedriver + selenium. Current supported websites include: [Wordle](www.nytimes.com/games/wordle/index.html), [Dordle](zaratustra.itch.io/dordle), [Quordle](www.quordle.com), [Octordle](octordle.com), [Sedecordle](www.sedecordle.com), [Duotrigordle](duotrigordle.com), [64ordle](64ordle.au), [Nordle](www.nordle.us), [Wordzy](wordzmania.com/Wordzy), and [Fibble](fibble.xyz).
 ```
-python -m wordle_autosolver [-h] [-n N] [-nyt | -hard | -master | -liar] [-best] [-quiet] [-clean]
-                            [-auto WEBSITE | -sim MAX_SIMS] [-continue LIMIT | -endless | -challenge]
-                            [-start WORD [WORD ...]]
+wordle_autosolver [-h] [-n N] [-nyt | -hard | -master | -liar] [-best] [-quiet] [-clean]
+                  [-play | -auto WEBSITE | -sim MAX_SIMS] [-continue LIMIT | -endless | -challenge][-start WORD [WORD ...]]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -32,18 +33,19 @@ optional arguments:
                         which letters (default: False)
   -liar                 use if playing Fibble where one letter in each response is always a lie
                         (default: False) (currently does not support use with "auto" flag)
-  -sim MAX_SIMS         set this flag to simulate MAX_SIMS unique games and give resulting stats
   -best                 set this flag to generate a minimal guess tree (be aware that this process
                         may be very slow)
   -quiet                hide all unnecessary console output
   -clean                empty the contents of "data/best_guess.json", "data/responses.json", and
                         each of their variants to relieve some storage space (the program will not
                         execute any other commands when this flag is set)
+  -play                 set this flag to play a game of Wordle using the command line
   -auto WEBSITE         set this flag to automate play on the given website (requires chromedriver)
                         -- NOTE: websites with a fixed number of boards will override the N
                         argument for number of boards -- valid websites are: 'wordle', 'wordzy',
                         'dordle', 'quordle', 'octordle', 'sedecordle', 'duotrigordle', '64ordle',
                         'nordle', and 'fibble'
+  -sim MAX_SIMS         set this flag to simulate MAX_SIMS unique games and give resulting stats
   -continue LIMIT       set this flag to continue playing on multiple boards up to the given number
                         (max 500) -- setting the limit to "-1" will test all possible starting
                         words to find the best one(s) (be aware that this process may be very slow)
@@ -61,7 +63,7 @@ optional arguments:
 
 ## Example Console Output
 ```
-$ python -m wordle_autosolver -auto wordle -n 4 -start lucky words
+$ wordle_autosolver -auto wordle -n 4 -start lucky words
 Loading precalculated data...
 Finished loading.
 

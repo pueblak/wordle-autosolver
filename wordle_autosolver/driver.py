@@ -1,20 +1,33 @@
-import time
-from argparse import ArgumentParser
-from json import load, dump
+import time  # pragma: no cover
+from argparse import ArgumentParser  # pragma: no cover
+from json import load, dump  # pragma: no cover
 
-from tqdm import tqdm
+from tqdm import tqdm  # pragma: no cover
+from selenium.webdriver.common.by import By  # pragma: no cover
 
-
-try:
-    from common import *
-    from solver import *
-    from auto import *
-    from data import *
-except ImportError:
-    from .common import *
-    from .solver import *
-    from .auto import *
-    from .data import *
+try:  # pragma: no cover
+    from common import set_response_data, get_response_data
+    from common import get_best_guess_updated, get_response_data_updated
+    from common import filter_remaining, PROGRESS, rec_build_best_tree
+    from solver import solve_wordle, manual_guess, manual_response
+    from solver import simulate, simulated_response
+    from auto import SITE_INFO, open_website, get_driver, quit_driver
+    from auto import auto_response_fibble, auto_read_fibble_start
+    from data import load_all_data, save_all_data, clean_all_data
+except ModuleNotFoundError:  # this is only here to help pytest find the module
+    from wordle_autosolver.common import set_response_data, get_response_data
+    from wordle_autosolver.common import get_best_guess_updated
+    from wordle_autosolver.common import get_response_data_updated
+    from wordle_autosolver.common import filter_remaining, PROGRESS
+    from wordle_autosolver.common import rec_build_best_tree
+    from wordle_autosolver.solver import solve_wordle
+    from wordle_autosolver.solver import manual_guess, manual_response
+    from wordle_autosolver.solver import simulate, simulated_response
+    from wordle_autosolver.auto import SITE_INFO, open_website, get_driver
+    from wordle_autosolver.auto import quit_driver, auto_response_fibble
+    from wordle_autosolver.auto import auto_read_fibble_start
+    from wordle_autosolver.data import load_all_data, save_all_data
+    from wordle_autosolver.data import clean_all_data
 
 
 def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
@@ -41,7 +54,7 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
     group2 = parser.add_mutually_exclusive_group()
     group2.add_argument('-play', action='store_true',
                         help=('set this flag to play a game of Wordle using '
-                              'the current console'))
+                              'the command line'))
     group2.add_argument('-auto', choices=['wordle', 'wordzy', 'dordle',
                                           'quordle', 'octordle', 'sedecordle',
                                           'duotrigordle', '64ordle', 'nordle',
@@ -92,7 +105,7 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
                         help=('set this flag if there are certain words you '
                               'want to start with regardless of the response'))
     args = parser.parse_args()
-    if args.clean:
+    if args.clean:  # pragma: no cover
         clean_all_data()
         exit()
     lim = max(min(args.board_limit, 500), args.n)
@@ -102,7 +115,7 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
     return ret
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     """Main entry point into the program."""
     # main variable initializations
     (n_games, hard, master, liar, site, lim, nyt,
@@ -174,7 +187,7 @@ def main() -> None:
         with open('data/ordered_guesses.json', 'r') as ordered:
             worst_case = load(ordered)
         modified = sorted(answers, key=lambda x: worst_case[x])
-        for starter in tqdm(modified, ascii=progress):
+        for starter in tqdm(modified, ascii=PROGRESS):
             _, worst = simulate(saved_best, freq, answers, guesses,
                                 [starter], n_games, hard, master, liar,
                                 len(answers), best_case[0], False)
@@ -272,7 +285,3 @@ def main() -> None:
     if site is not None:
         input("PRESS ENTER TO EXIT")
         quit_driver()
-
-
-if __name__ == '__main__':
-    main()

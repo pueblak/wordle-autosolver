@@ -2,20 +2,19 @@ import os
 from typing import Union, Optional
 
 from tqdm import tqdm
-from termcolor import colored
 
 
 RIGHT = 'O'
 CLOSE = '+'
 WRONG = '.'
+IS_MS_OS: bool = os.name == 'nt'
+PROGRESS: Optional[str] = '__...:::!!|' if IS_MS_OS else None
 
 response_data: dict = {}
 response_data_updated: bool = False
 best_guess_updated: bool = False
-is_ms_os: bool = os.name == 'nt'
-progress: Optional[str] = '__...:::!!|' if is_ms_os else None
 
-if is_ms_os:
+if IS_MS_OS:
     os.system('color')
 
 
@@ -61,7 +60,7 @@ def get_response_data_updated() -> bool:
     return response_data_updated
 
 
-def set_response_data(value: dict) -> None:
+def set_response_data(value={}) -> None:
     """Sets the value of `response_data`.
 
     Args:
@@ -90,12 +89,11 @@ def colored_response(guess: str, response: str, master=False) -> str:
     letters = response if master else guess.upper()
     for letter, symbol in zip(letters, response):
         if symbol == RIGHT:
-            text += colored(letter, 'grey',
-                            'on_cyan' if is_ms_os else 'on_green')
+            text += "\x1b[38;5;102m\x1b[48;5;30m" + letter + "\x1b[0m"
         elif symbol == CLOSE:
-            text += colored(letter, 'grey', 'on_yellow')
+            text += "\x1b[38;5;103m\x1b[48;5;30m" + letter + "\x1b[0m"
         else:
-            text += colored(letter, 'white', 'on_grey')
+            text += letter
     return text
 
 
@@ -349,7 +347,7 @@ def best_guesses(answers: list[str], guesses: Optional[list[str]] = None,
     worst_case = dict([(x, 0) for x in guesses])
     score = dict([(x, {}) for x in guesses])
     limit = max_limit
-    for guess in tqdm(guesses, leave=False, ascii=progress, disable=not show):
+    for guess in tqdm(guesses, leave=False, ascii=PROGRESS, disable=not show):
         for answer in answers:
             response = get_response(guess, answer, master)
             if response not in score[guess]:
@@ -413,7 +411,7 @@ def best_avg_guesses(answers: list[str], guesses: Optional[list[str]] = None,
     average = dict([(x, 0) for x in guesses])
     count = dict([(x, {}) for x in guesses])
     best_avg = len(answers)
-    for guess in tqdm(guesses, leave=False, ascii=progress, disable=not show):
+    for guess in tqdm(guesses, leave=False, ascii=PROGRESS, disable=not show):
         for answer in answers:
             response = get_response(guess, answer, master)
             if response not in count[guess]:
@@ -431,28 +429,6 @@ def best_avg_guesses(answers: list[str], guesses: Optional[list[str]] = None,
     if len(priority) > 0:
         return list(priority)
     return best
-
-
-def precalculate_responses(answers: list[str], guesses: list[str], master: bool
-                           ) -> None:
-    """Precalculates all possible responses and record them to `response_data`.
-
-    Args:
-        answers:
-            The list of all remaining possible answers
-        guesses:
-            The list of all valid guesses
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-    """
-    global response_data, response_data_updated
-    print('Precalculating all possible responses...')
-    response_data = dict([(guess, {}) for guess in guesses])
-    for guess in tqdm(guesses, ascii=progress):
-        for answer in answers:
-            response_data[guess][answer] = get_response(guess, answer, master)
-    response_data_updated = True
-    print('Finished calculating.')
 
 
 def rec_build_best_tree(answers: list[str], guesses: list[str], start: str,
@@ -486,11 +462,9 @@ def rec_build_best_tree(answers: list[str], guesses: list[str], start: str,
         until the only remaining response is that all letters are correct.
     """
     if depth == 0:
-        if len(answers) == 1:
-            return {answers[0]: {}}
         return {}
     tree = {start: {}}
-    for answer in tqdm(answers, ascii=progress, disable=not show):
+    for answer in tqdm(answers, ascii=PROGRESS, disable=not show):
         response = get_response(start, answer, master)
         if response in tree[start]:
             continue

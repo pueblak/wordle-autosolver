@@ -1,6 +1,3 @@
-try:
-    from driver import main
-except ImportError:
-    from .driver import main
+from driver import main  # pragma: no cover
 
-main()
+main()  # pragma: no cover

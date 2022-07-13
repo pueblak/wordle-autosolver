@@ -1,7 +1,7 @@
 from pytest import fixture
 
-import common
-from data import load_all_data
+import wordle_autosolver.common as common
+from wordle_autosolver.data import load_all_data
 
 
 ###############################################################################
@@ -156,6 +156,8 @@ def example_guess_remaining():
 
 def test_filter_remaining__easy(example_guess_remaining):
     guess, remaining = example_guess_remaining
+    assert(common.filter_remaining(remaining, guess, "OOOOO", False,
+                                   use_cache=False) == [guess])
     response = common._get_easy_response(guess, "heart")
     assert(common.filter_remaining(remaining, guess, response, False,
                                    use_cache=False)
@@ -289,7 +291,8 @@ def default_guesses():
     return load_all_data(False, False, False, False, False)[1]
 
 
-def test_best_guess__easy(default_answers, default_guesses):
+def test_best_guess__easy(default_guesses):
+    # note: everything is converted to a set because the order does not matter
     assert(set(common.best_guesses(['lying', 'click', 'cliff', 'pupil',
                                     'cling', 'flick', 'fling', 'clink'],
                                    default_guesses))
@@ -304,9 +307,15 @@ def test_best_guess__easy(default_answers, default_guesses):
     assert(set(common.best_guesses(['penny', 'venue', 'penne', 'peppy'],
                                    default_guesses))
            == set(('penny', 'venue', 'penne', 'peppy')))
+    assert(set(common.best_guesses(['track', 'draft', 'actor', 'craft',
+                                    'altar', 'tract', 'graft', 'trawl',
+                                    'argot'],
+                                   default_guesses))
+           == set(('diact',)))
 
 
-def test_best_guess__master(default_answers, default_guesses):
+def test_best_guess__master(default_guesses):
+    # note: everything is converted to a set because the order does not matter
     assert(set(common.best_guesses(['forth', 'motor', 'forum', 'robot',
                                     'booth', 'broth', 'rotor', 'motto',
                                     'froth'],
@@ -326,12 +335,156 @@ def test_best_guess__master(default_answers, default_guesses):
            == set(('women', 'minor')))
 
 
-def test_best_guess__using_filter_remaining(default_answers, default_guesses):
-    remaining = common.filter_remaining(default_answers, 'ratio', '.....',
-                                        False, use_cache=False)
-    assert(set(common.best_guesses(remaining, default_guesses))
-           == set(('melds', 'lends')))
-    remaining = common.filter_remaining(default_answers, 'spine', '.....',
-                                        True, use_cache=False)
-    assert(set(common.best_guesses(remaining, default_guesses, master=True))
-           == set(('torch',)))
+def test_best_guess__return_all():
+    worst_case = common.best_guesses(['croup', 'crony', 'crown', 'croon'],
+                                     return_all=True)
+    assert(worst_case['crown'] == 1)
+    assert(worst_case['croon'] == 1)
+    assert(worst_case['crony'] == 2)
+    assert(worst_case['croup'] == 3)
+
+
+# def test_best_guess__using_filter_remaining(default_answers, default_guesses):
+#     remaining = common.filter_remaining(default_answers, 'ratio', '.....',
+#                                         False, use_cache=False)
+#     assert(set(common.best_guesses(remaining, default_guesses))
+#            == set(('melds', 'lends')))
+#     remaining = common.filter_remaining(default_answers, 'spine', '.....',
+#                                         True, use_cache=False)
+#     assert(set(common.best_guesses(remaining, default_guesses, master=True))
+#            == set(('torch',)))
+
+
+###############################################################################
+#                            TEST AVERAGE GUESSES                             #
+###############################################################################
+
+
+def test_average_guess__easy(default_guesses):
+    # note: everything is converted to a set because the order does not matter
+    assert(set(common.best_avg_guesses(['lying', 'click', 'cliff', 'pupil',
+                                        'cling', 'flick', 'fling', 'clink'],
+                                       default_guesses))
+           == set(('flick', 'fling', 'clink')))
+    assert(set(common.best_avg_guesses(['crown', 'croup', 'crony', 'croon'],
+                                       default_guesses))
+           == set(('crown', 'croon')))
+    assert(set(common.best_avg_guesses(['bring', 'drink', 'brink', 'grind',
+                                        'wring'],
+                                       default_guesses))
+           == set(('bring',)))
+    assert(set(common.best_avg_guesses(['penny', 'venue', 'penne', 'peppy'],
+                                       default_guesses))
+           == set(('penny', 'venue', 'penne', 'peppy')))
+    assert(set(common.best_avg_guesses(['track', 'draft', 'actor', 'craft',
+                                        'altar', 'tract', 'graft', 'trawl',
+                                        'argot'],
+                                       default_guesses))
+           == set(('diact',)))
+
+
+def test_average_guess__master(default_guesses):
+    # note: everything is converted to a set because the order does not matter
+    assert(set(common.best_avg_guesses(['forth', 'motor', 'forum', 'robot',
+                                        'booth', 'broth', 'rotor', 'motto',
+                                        'froth'],
+                                       default_guesses, master=True))
+           == set(('robot',)))
+    assert(set(common.best_avg_guesses(['allow', 'cloud', 'cloth', 'flora',
+                                        'alloy', 'aloof', 'allay', 'aloha'],
+                                       default_guesses, master=True))
+           == set(('allay',)))
+    assert(set(common.best_avg_guesses(['baker', 'maker', 'wager', 'wafer',
+                                        'waver', 'gamer', 'gazer', 'faker',
+                                        'waxer'],
+                                       default_guesses, master=True))
+           == set(('gowfs',)))
+    assert(set(common.best_avg_guesses(['women', 'minor'],
+                                       default_guesses, master=True))
+           == set(('women', 'minor')))
+
+
+def test_average_guess__return_all():
+    avg_case = common.best_avg_guesses(['croup', 'crony', 'crown', 'croon'],
+                                       return_all=True)
+    assert(avg_case['crown'] == 1.0)
+    assert(avg_case['croon'] == 1.0)
+    assert(avg_case['crony'] == 1.5)
+    assert(avg_case['croup'] == 2.5)
+
+
+###############################################################################
+#                         TEST REC BUILD BEST TREE                            #
+###############################################################################
+
+
+def test_rec_build_best_tree__simple(default_guesses):
+    answers = ['croup', 'crony', 'crown', 'croon']
+    assert(common.rec_build_best_tree(answers, default_guesses, 'crown', False,
+                                      False, 1, False)
+           == {'crown': {
+                'OOO..': {'croup': {}},
+                'OOO.+': {'crony': {}},
+                'OOOOO': {'crown': {}},
+                'OOO.O': {'croon': {}}
+                }})
+
+
+def test_rec_build_best_tree__bad(example_guess_remaining, default_guesses):
+    _, answers = example_guess_remaining
+    assert(common.rec_build_best_tree(answers, default_guesses, 'roate', False,
+                                      False, 1, False)
+           == {})
+
+
+def test_rec_build_best_tree__good(example_guess_remaining, default_guesses):
+    _, answers = example_guess_remaining
+    assert(common.rec_build_best_tree(answers, default_guesses, 'trips', False,
+                                      False, 3, False)
+           != {})
+
+
+def test_rec_build_best_tree__best(example_guess_remaining, default_guesses):
+    _, answers = example_guess_remaining
+    assert(common.rec_build_best_tree(answers, default_guesses, 'roate', False,
+                                      False, 2, False)
+           != {})
+
+
+###############################################################################
+#                            TEST MISCELLANEOUS                               #
+###############################################################################
+
+def test_best_guess_updated():
+    common.set_best_guess_updated(True)
+    assert(common.get_best_guess_updated() is True)
+    common.set_best_guess_updated(False)
+    assert(common.get_best_guess_updated() is False)
+
+
+def test_response_data_updated():
+    common.set_response_data_updated(True)
+    assert(common.get_response_data_updated() is True)
+    common.set_response_data_updated(False)
+    assert(common.get_response_data_updated() is False)
+
+
+def test_response_data():
+    response_data = {'alert': {'olive': '.O+..'}}
+    common.set_response_data(response_data)
+    assert(common.get_response_data()['alert']['olive'] == '.O+..')
+
+
+def test_colored_response():
+    assert(common.colored_response('trips', 'O.+O.', False)
+           == ("\x1b[38;5;102m\x1b[48;5;30mT\x1b[0m"
+               "R"
+               "\x1b[38;5;103m\x1b[48;5;30mI\x1b[0m"
+               "\x1b[38;5;102m\x1b[48;5;30mP\x1b[0m"
+               "S"))
+    assert(common.colored_response('trips', 'OO+..', True)
+           == ("\x1b[38;5;102m\x1b[48;5;30mO\x1b[0m"
+               "\x1b[38;5;102m\x1b[48;5;30mO\x1b[0m"
+               "\x1b[38;5;103m\x1b[48;5;30m+\x1b[0m"
+               "."
+               "."))

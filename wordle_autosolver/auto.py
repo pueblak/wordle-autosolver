@@ -7,25 +7,25 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 try:
-    from common import *
-except ImportError:
-    from .common import *
+    from common import RIGHT, CLOSE, WRONG, PROGRESS
+except ModuleNotFoundError:  # this is only here to help pytest find the module
+    from wordle_autosolver.common import RIGHT, CLOSE, WRONG, PROGRESS
 
 
-driver: webdriver.Chrome = None
-auto_guess_count: int = 0
-dialog_closed: bool = False
+_driver: webdriver.Chrome = None
+_auto_guess_count: int = 0
+_dialog_closed: bool = False
 
 
 def get_driver() -> webdriver.Chrome:
     """Returns the current webdriver instance."""
-    return driver
+    return _driver
 
 
 def quit_driver() -> None:
     """Quits the current webdriver instance."""
-    if driver is not None:
-        driver.quit()
+    if _driver is not None:
+        _driver.quit()
 
 
 def open_website(website: str, num_boards=1, master=False, endless=False,
@@ -54,7 +54,7 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
         website cannot play that exact number of games, so be sure to verify
         this result before using the number of boards requested by the user.
     """
-    global driver
+    global _driver
     if not quiet:
         print("\nConnecting to the target website...")
     options = webdriver.ChromeOptions()
@@ -66,7 +66,7 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
         options.add_argument('--headless')
     # exit any driver that was being used before and reinitialize it
     quit_driver()
-    driver = webdriver.Chrome(options=options)
+    _driver = webdriver.Chrome(options=options)
     # alter the URL if necessary to play the correct version of the chosen game
     if 'wordzmania' in website and master:
         website += 'Master'
@@ -85,7 +85,7 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
     # elif 'wordle' in website and endless:
     #     website = 'https://devbanana.itch.io/infinidle'
     # # #
-    driver.get(website)  # this is when it attempts to connect to the website
+    _driver.get(website)  # this is when it attempts to connect to the website
     if not quiet:
         print("Connected to '{}'".format(website))
     time.sleep(3)  # give the page elements a few seconds to load
@@ -111,7 +111,7 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
 
 def navigate_wordle() -> None:
     """Navigates the Wordle website before beginning the solve."""
-    game_app = driver.find_element(by=By.TAG_NAME, value='game-app')
+    game_app = _driver.find_element(by=By.TAG_NAME, value='game-app')
     root = game_app.shadow_root
     # close instructions dialog
     modal = root.find_element(By.CSS_SELECTOR, '#game > game-modal')
@@ -134,68 +134,68 @@ def navigate_wordle() -> None:
 
 def navigate_dordle(endless: bool) -> None:
     """Navigates the Dordle website before beginning the solve."""
-    iframe = driver.find_element(by=By.XPATH, value='//*[@id="game_drop"]')
-    driver.switch_to.frame(iframe)
-    driver.find_element(value='free' if endless else 'daily').click()
+    iframe = _driver.find_element(by=By.XPATH, value='//*[@id="game_drop"]')
+    _driver.switch_to.frame(iframe)
+    _driver.find_element(value='free' if endless else 'daily').click()
     # change theme to dark (optional)
-    driver.find_element(By.XPATH, '//*[@id="body"]/table/tbody/tr/td[5]'
-                        ).click()
-    driver.find_element(By.XPATH,
-                        '//*[@id="options"]/div[4]/table/tbody/tr/td[3]'
-                        ).click()
-    driver.find_element(By.XPATH, '//*[@id="body"]/table/tbody/tr/td[5]'
-                        ).click()
+    _driver.find_element(By.XPATH, '//*[@id="body"]/table/tbody/tr/td[5]'
+                         ).click()
+    _driver.find_element(By.XPATH,
+                         '//*[@id="options"]/div[4]/table/tbody/tr/td[3]'
+                         ).click()
+    _driver.find_element(By.XPATH, '//*[@id="body"]/table/tbody/tr/td[5]'
+                         ).click()
     time.sleep(2)
 
 
 def navigate_quordle() -> None:
     """Navigates the Quordle website before beginning the solve."""
-    driver.find_element(By.XPATH,
-                        '//*[@id="root"]/div/nav/div/div[2]/button[2]'
-                        ).click()
-    driver.find_element(By.XPATH,
-                        '//*[@id="options-dropdown"]/button[1]').click()
+    _driver.find_element(By.XPATH,
+                         '//*[@id="root"]/div/nav/div/div[2]/button[2]'
+                         ).click()
+    _driver.find_element(By.XPATH,
+                         '//*[@id="options-dropdown"]/button[1]').click()
     time.sleep(1)
-    driver.find_element(
+    _driver.find_element(
         By.XPATH,
         '//*[@id="settings-panel"]/div[2]/div[2]/div[1]/label/div[1]'
         ).click()
-    driver.find_element(By.XPATH,
-                        '//*[@id="settings-panel"]/div[1]/button').click()
+    _driver.find_element(By.XPATH,
+                         '//*[@id="settings-panel"]/div[1]/button').click()
     time.sleep(1)
 
 
 def navigate_infinidle() -> None:
     """Navigates the Infinidle website before beginning the solve."""
-    driver.find_element(By.CLASS_NAME, 'load_iframe_btn').click()
+    _driver.find_element(By.CLASS_NAME, 'load_iframe_btn').click()
     time.sleep(3)
-    iframe = driver.find_element(by=By.XPATH, value='//*[@id="game_drop"]')
-    driver.switch_to.frame(iframe)
+    iframe = _driver.find_element(by=By.XPATH, value='//*[@id="game_drop"]')
+    _driver.switch_to.frame(iframe)
 
 
 def navigate_wordzy(num_boards: int, endless: bool, quiet=False) -> int:
     """Navigates the Wordzy website before beginning the solve."""
-    play_buttons = driver.find_elements(by=By.CLASS_NAME,
-                                        value='play-button')
+    play_buttons = _driver.find_elements(by=By.CLASS_NAME,
+                                         value='play-button')
     time.sleep(4)
     if not endless:
-        select_button = driver.find_element(by=By.CLASS_NAME,
-                                            value='stake-selector')
+        select_button = _driver.find_element(by=By.CLASS_NAME,
+                                             value='stake-selector')
         select_button.click()
         time.sleep(2)
-        listbox = driver.find_element(by=By.CLASS_NAME,
-                                      value='mat-select-panel')
+        listbox = _driver.find_element(by=By.CLASS_NAME,
+                                       value='mat-select-panel')
         lo = 9999
         for element in listbox.find_elements(by=By.CLASS_NAME,
                                              value='mat-option'):
             lo = min(lo, int(str(element.get_attribute('id')).split('-')[-1]))
         num = str(lo + ceil(log2(min(num_boards, 1024))))
-        board_num_select = driver.find_element(by=By.ID,
-                                               value='mat-option-' + num)
+        board_num_select = _driver.find_element(by=By.ID,
+                                                value='mat-option-' + num)
         while not board_num_select.get_attribute('aria-disabled'):
             num = str(int(num) - 1)
-            board_num_select = driver.find_element(by=By.ID,
-                                                   value='mat-option-' + num)
+            board_num_select = _driver.find_element(by=By.ID,
+                                                    value='mat-option-' + num)
         num_boards = 2 ** (int(num) - lo)
         board_num_select.click()
         time.sleep(2)
@@ -203,21 +203,21 @@ def navigate_wordzy(num_boards: int, endless: bool, quiet=False) -> int:
     else:
         play_buttons[1].click()
     if not quiet:
-        print("Navigated to '{}'.".format(driver.current_url))
+        print("Navigated to '{}'.".format(_driver.current_url))
     return num_boards
 
 
 def validate_wordzy_game(num_boards: int, endless: bool):
     """Checks if the Wordzy website is behaving correctly."""
-    stage = driver.find_elements(by=By.TAG_NAME, value='cm-game-stage')
+    stage = _driver.find_elements(by=By.TAG_NAME, value='cm-game-stage')
     while len(stage) == 0:
         time.sleep(3)
-        stage = driver.find_elements(by=By.TAG_NAME, value='cm-game-stage')
+        stage = _driver.find_elements(by=By.TAG_NAME, value='cm-game-stage')
         if len(stage) > 0:
             break
         print('\n\n    ERROR: PAGE IS NOT RESPONDING - ATTEMPTING RELOAD...\n')
         time.sleep(7)
-        if driver.current_url == 'https://wordzmania.com/Wordzy/Classic':
+        if _driver.current_url == 'https://wordzmania.com/Wordzy/Classic':
             navigate_wordzy(num_boards, endless)
             time.sleep(5)
 
@@ -225,7 +225,7 @@ def validate_wordzy_game(num_boards: int, endless: bool):
 def auto_read_fibble_start() -> str:
     """Reads and returns the starting guess before beginning the solve."""
     guess = ''
-    row = driver.find_element(by=By.CLASS_NAME, value='Row')
+    row = _driver.find_element(by=By.CLASS_NAME, value='Row')
     for letter in row.find_elements(by=By.CLASS_NAME, value='Row-letter'):
         guess += letter.get_attribute('aria-label').split(':')[0]
     return guess.lower()
@@ -247,7 +247,7 @@ def auto_guess_default(remaining: list[str], guesses: list[str], best: str,
     Returns:
         The word which was selected as the guess.
     """
-    webpage = driver.find_element(by=By.TAG_NAME, value='html')
+    webpage = _driver.find_element(by=By.TAG_NAME, value='html')
     time.sleep(0.5)
     webpage.send_keys(best)
     webpage.send_keys(Keys.ENTER)
@@ -288,10 +288,10 @@ def auto_response_default(guess: str, remaining: list[str], entered: list[str],
         second element is the index of the board that gave that response.
     """
     responses = []
-    boards = list(driver.find_element(by=By.ID,
-                                      value="box-holder-{}".format(n + 1))
+    boards = list(_driver.find_element(by=By.ID,
+                                       value="box-holder-{}".format(n + 1))
                   for n in range(len(remaining)))
-    for board in tqdm(expected, ascii=progress, leave=False):
+    for board in tqdm(expected, ascii=PROGRESS, leave=False):
         response = ''
         for row in boards[board].find_elements(by=By.TAG_NAME, value="tr"):
             if guess.upper() in ''.join(x.text for x in
@@ -333,35 +333,35 @@ def auto_guess_wordzy(remaining: list[str], guesses: list[str], best: str,
     Returns:
         The word which was selected as the guess.
     """
-    global auto_guess_count, dialog_closed
+    global _auto_guess_count, _dialog_closed
     time.sleep(3)
     validate_wordzy_game(len(remaining), endless)
-    for stage in driver.find_elements(by=By.TAG_NAME,
-                                      value='cm-display-stage'):
+    for stage in _driver.find_elements(by=By.TAG_NAME,
+                                       value='cm-display-stage'):
         for button in stage.find_elements(by=By.TAG_NAME, value='button'):
             if (button.get_attribute('color') == 'green' and
                     'play_arrow' in button.text and
                     'mat-button-disabled' in button.get_attribute('class')):
                 exit('\n\nGame was not solved in time.\n')
     if len(remaining) > 1:
-        auto_guess_count += 1
+        _auto_guess_count += 1
     keyboard = {}
-    for key in driver.find_element(
+    for key in _driver.find_element(
             by=By.CLASS_NAME, value='keys'
             ).find_elements(
             by=By.CLASS_NAME, value='key'):
         keyboard[key.text.split()[0].strip().lower()] = key
-    if ((not dialog_closed or len(remaining) == 1) and
-            auto_guess_count == 3):
+    if ((not _dialog_closed or len(remaining) == 1) and
+            _auto_guess_count == 3):
         time.sleep(2.5)
-        dialogs = driver.find_elements(by=By.CLASS_NAME,
-                                       value='info-dialog')
+        dialogs = _driver.find_elements(by=By.CLASS_NAME,
+                                        value='info-dialog')
         if len(dialogs) > 0:
             dialogs[0].find_element(by=By.TAG_NAME, value='button').click()
             time.sleep(1)
             if len(remaining) > 1:
-                dialog_closed = True
-    webpage = driver.find_element(by=By.TAG_NAME, value='html')
+                _dialog_closed = True
+    webpage = _driver.find_element(by=By.TAG_NAME, value='html')
     webpage.send_keys(best)
     webpage.send_keys(Keys.ENTER)
     time.sleep(3)
@@ -401,8 +401,8 @@ def auto_response_wordzy(guess: str, remaining: list[str], entered: list[str],
     n_games = len(remaining)
     validate_wordzy_game(n_games, endless)
     # if the game has ended, the last guess must have been correct
-    for stage in driver.find_elements(by=By.TAG_NAME,
-                                      value='cm-display-stage'):
+    for stage in _driver.find_elements(by=By.TAG_NAME,
+                                       value='cm-display-stage'):
         for button in stage.find_elements(by=By.TAG_NAME, value='button'):
             if (button.get_attribute('color') == 'green' and
                     'play_arrow' in button.text):
@@ -410,7 +410,7 @@ def auto_response_wordzy(guess: str, remaining: list[str], entered: list[str],
     # if not, find the elements necessary to read each board's response
     responses = []
     focus_key = None
-    stage = driver.find_element(by=By.TAG_NAME, value='cm-word-stage')
+    stage = _driver.find_element(by=By.TAG_NAME, value='cm-word-stage')
     buttons = stage.find_elements(by=By.CLASS_NAME, value='key')
     for button in reversed(buttons):
         classes = button.get_attribute('class').split()
@@ -429,7 +429,7 @@ def auto_response_wordzy(guess: str, remaining: list[str], entered: list[str],
                 focus_key = button
                 break
     # read the response on each board that is still expected to exist
-    for board in tqdm(expected, ascii=progress, leave=False):
+    for board in tqdm(expected, ascii=PROGRESS, leave=False):
         validate_wordzy_game(n_games, endless)
         # find the most recent response
         while not (focus_key.text.split()[-1]).isnumeric():
@@ -515,7 +515,7 @@ def auto_response_wordle(guess: str, remaining: list[str], entered: list[str],
         second element is the index of the board that gave that response.
     """
     response = ''
-    game_app = driver.find_element(by=By.TAG_NAME, value='game-app')
+    game_app = _driver.find_element(by=By.TAG_NAME, value='game-app')
     root = game_app.shadow_root
     board = root.find_element(By.CSS_SELECTOR, '#board')
     for game_row in board.find_elements(By.TAG_NAME, 'game-row'):
@@ -539,7 +539,7 @@ def auto_response_infinidle(guess: str, remaining: list[str],
                             hard: bool, master: bool, liar: bool, endless: bool
                             ) -> list[tuple[str, int]]:
     """WARNING: Currently not implemented."""
-    driver.save_screenshot('infinidle/ss.png')
+    _driver.save_screenshot('infinidle/ss.png')
     # now check rgb values of specific pixels to figure out what's going on
     pass
 
@@ -573,7 +573,7 @@ def auto_response_dordle(guess: str, remaining: list[str], entered: list[str],
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
-    game = driver.find_element(by=By.XPATH, value='//*[@id="game"]')
+    game = _driver.find_element(by=By.XPATH, value='//*[@id="game"]')
     responses = []
     boards = list(game.find_elements(by=By.CLASS_NAME, value="table_guesses"))
     for board in expected:
@@ -625,8 +625,8 @@ def auto_response_quordle(guess: str, remaining: list[str], entered: list[str],
         second element is the index of the board that gave that response.
     """
     responses = []
-    boards = list(driver.find_elements(by=By.XPATH,
-                                       value='//*[@role="table"]'))
+    boards = list(_driver.find_elements(by=By.XPATH,
+                                        value='//*[@role="table"]'))
     for board in expected:
         response = ''
         for row in boards[board].find_elements(by=By.XPATH,
@@ -677,8 +677,8 @@ def auto_response_duotrigordle(guess: str, remaining: list[str],
         second element is the index of the board that gave that response.
     """
     responses = []
-    boards = list(driver.find_elements(by=By.CLASS_NAME, value="board"))
-    for board in tqdm(expected, ascii=progress, leave=False):
+    boards = list(_driver.find_elements(by=By.CLASS_NAME, value="board"))
+    for board in tqdm(expected, ascii=PROGRESS, leave=False):
         response = ''
         cells = boards[board].find_elements(by=By.CLASS_NAME, value="cell")
         index = (len(entered) - 1) * 5
@@ -724,10 +724,10 @@ def auto_response_64ordle(guess: str, remaining: list[str], entered: list[str],
         second element is the index of the board that gave that response.
     """
     responses = []
-    boards = list(driver.find_element(by=By.ID,
-                                      value="box-holder-{}".format(n + 1))
+    boards = list(_driver.find_element(by=By.ID,
+                                       value="box-holder-{}".format(n + 1))
                   for n in range(len(remaining)))
-    for board in tqdm(expected, ascii=progress, leave=False):
+    for board in tqdm(expected, ascii=PROGRESS, leave=False):
         response = ''
         for row in boards[board].find_elements(by=By.TAG_NAME, value="tr"):
             if guess.upper() in ''.join(x.text for x in
@@ -775,10 +775,10 @@ def auto_response_nordle(guess: str, remaining: list[str], entered: list[str],
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
-    game = driver.find_element(by=By.ID, value='words')
+    game = _driver.find_element(by=By.ID, value='words')
     columns = list(game.find_elements(by=By.CLASS_NAME, value='column'))
     responses = []
-    for board in tqdm(expected, ascii=progress, leave=False):
+    for board in tqdm(expected, ascii=PROGRESS, leave=False):
         response = ''
         for row in columns[board].find_elements(By.CLASS_NAME, 'guess'):
             word = ''.join(cell.text[0] for cell in
@@ -826,7 +826,7 @@ def auto_response_fibble(guess: str, remaining: list[str], entered: list[str],
         second element is the index of the board that gave that response.
     """
     response = ''
-    row = driver.find_elements(by=By.CLASS_NAME, value='Row')[len(entered)]
+    row = _driver.find_elements(by=By.CLASS_NAME, value='Row')[len(entered)]
     for letter in row.find_elements(by=By.CLASS_NAME, value='Row-letter'):
         label = letter.get_attribute('aria-label')
         if 'correct' in label:

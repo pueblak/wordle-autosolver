@@ -58,9 +58,9 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
                         help=('set this flag to play a game of Wordle using '
                               'the command line'))
     group2.add_argument('--auto', choices=['wordle', 'wordzy', 'dordle',
-                                          'quordle', 'octordle', 'sedecordle',
-                                          'duotrigordle', '64ordle', 'nordle',
-                                          'fibble'],
+                                           'quordle', 'octordle', 'sedecordle',
+                                           'duotrigordle', '64ordle', 'nordle',
+                                           'fibble'],
                         metavar='WEBSITE', default=None, dest='site',
                         help=('set this flag to automate play on the given '
                               'website (requires chromedriver) -- NOTE: '

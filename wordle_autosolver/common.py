@@ -4,29 +4,149 @@ from typing import Union, Optional
 from tqdm import tqdm
 
 
-RIGHT = 'O'
-CLOSE = '+'
-WRONG = '.'
+RIGHT: str = 'O'
+CLOSE: str = '+'
+WRONG: str = '.'
 IS_MS_OS: bool = os.name == 'nt'
 PROGRESS: Optional[str] = '__...:::!!|' if IS_MS_OS else None
 
-response_data: dict = {}
-response_data_updated: bool = False
-best_guess_updated: bool = False
+_response_data: dict = {}
+_response_data_updated: bool = False
+_best_guess_updated: bool = False
 
 if IS_MS_OS:
     os.system('color')
 
 
-def set_best_guess_updated(value=True) -> None:
+class GameMode():
+    """An class representing all possible game modes for the solver"""
+    DEFAULT = 0
+    HARD = 1
+    MASTER = 2
+    LIAR = 3
+    MODE_MASK = 3
+    PLAY_MASK = 4
+    PLAY_DEFAULT = 4
+    PLAY_HARD = 5
+    PLAY_MASTER = 6
+    PLAY_LIAR = 7
+    DEFAULT_ENDLESS = 8
+    ENDLESS_MASK = 8
+    HARD_ENDLESS = 9
+    MASTER_ENDLESS = 10
+    LIAR_ENDLESS = 11
+    PLAY_DEFAULT_ENDLESS = 12
+    PLAY_HARD_ENDLESS = 13
+    PLAY_MASTER_ENDLESS = 14
+    PLAY_LIAR_ENDLESS = 15
+
+    def __init__(self, value=DEFAULT):
+        self.value = value
+
+    def __eq__(self, other):
+        if isinstance(other, int):
+            return self.value == other
+        return isinstance(other, __class__) and self.value == other.value
+
+    @property
+    def default(self) -> bool:
+        return (self.value & self.MODE_MASK) == self.DEFAULT
+
+    @default.setter
+    def default(self, target: bool) -> None:
+        is_set = (self.value & self.MODE_MASK) == self.DEFAULT
+        if target != is_set:
+            self.value &= self.PLAY_MASK | self.ENDLESS_MASK
+            if not target:
+                self.value |= self.HARD
+
+    @property
+    def hard(self) -> bool:
+        return (self.value & self.MODE_MASK) == self.HARD
+
+    @hard.setter
+    def hard(self, target: bool) -> None:
+        is_set = (self.value & self.MODE_MASK) == self.HARD
+        if target != is_set:
+            self.value &= self.PLAY_MASK | self.ENDLESS_MASK
+            if target:
+                self.value |= self.HARD
+
+    @property
+    def master(self) -> bool:
+        return (self.value & self.MODE_MASK) == self.MASTER
+
+    @master.setter
+    def master(self, target: bool) -> None:
+        is_set = (self.value & self.MODE_MASK) == self.MASTER
+        if target != is_set:
+            self.value &= self.PLAY_MASK | self.ENDLESS_MASK
+            if target:
+                self.value |= self.MASTER
+
+    @property
+    def liar(self) -> bool:
+        return (self.value & self.MODE_MASK) == self.LIAR
+
+    @liar.setter
+    def liar(self, target: bool) -> None:
+        is_set = (self.value & self.MODE_MASK) == self.LIAR
+        if target != is_set:
+            self.value &= self.PLAY_MASK | self.ENDLESS_MASK
+            if target:
+                self.value |= self.LIAR
+
+    @property
+    def play(self) -> bool:
+        return bool(self.value & self.PLAY_MASK)
+
+    @play.setter
+    def play(self, target: bool) -> None:
+        is_set = bool(self.value & self.PLAY_MASK)
+        if target != is_set:
+            self.value &= self.MODE_MASK | self.ENDLESS_MASK
+            if target:
+                self.value |= self.PLAY_MASK
+
+    @property
+    def endless(self) -> bool:
+        return bool(self.value & self.ENDLESS_MASK)
+
+    @endless.setter
+    def endless(self, target: bool) -> None:
+        is_set = bool(self.value & self.ENDLESS_MASK)
+        if target != is_set:
+            self.value &= self.MODE_MASK | self.PLAY_MASK
+            if target:
+                self.value |= self.ENDLESS_MASK
+
+    def __str__(self):
+        elems = ['PLAY'] if self.play else []
+        if self.hard:
+            elems.append('HARD')
+        elif self.master:
+            elems.append('MASTER')
+        elif self.liar:
+            elems.append('LIAR')
+        else:
+            elems.append('DEFAULT')
+        if self.endless:
+            elems.append('ENDLESS')
+        return '_'.join(elems)
+
+    def __repr__(self):
+        return 'GameMode.' + str(self)
+
+
+def set_best_guess_updated(value: bool = True) -> None:
     """Sets the value of `best_guess_updated`.
 
     Args:
         value:
             The boolean value to set (default: True)
     """
-    global best_guess_updated
-    best_guess_updated = value
+    global _best_guess_updated
+    _best_guess_updated = value
 
 
 def get_best_guess_updated() -> bool:
@@ -36,18 +156,18 @@ def get_best_guess_updated() -> bool:
         The boolean value representing whether or not the `best_guess` dict has
         been updated.
     """
-    return best_guess_updated
+    return _best_guess_updated
 
 
-def set_response_data_updated(value=True) -> None:
+def set_response_data_updated(value: bool = True) -> None:
     """Sets the value of `response_data_updated`.
 
     Args:
         value:
             The boolean value to set (default: True)
     """
-    global response_data_updated
-    response_data_updated = value
+    global _response_data_updated
+    _response_data_updated = value
 
 
 def get_response_data_updated() -> bool:
@@ -57,18 +177,18 @@ def get_response_data_updated() -> bool:
         The boolean value representing whether or not the `response_data` dict
         has been updated.
     """
-    return response_data_updated
+    return _response_data_updated
 
 
-def set_response_data(value={}) -> None:
+def set_response_data(value: dict[str, dict[str, str]] = {}) -> None:
     """Sets the value of `response_data`.
 
     Args:
         value:
             The new dictionary to replace as the data
     """
-    global response_data
-    response_data = value
+    global _response_data
+    _response_data = value
 
 
 def get_response_data() -> dict[str, dict[str, str]]:
@@ -80,13 +200,16 @@ def get_response_data() -> dict[str, dict[str, str]]:
         ALERT and the answer was OLIVE, the response would be `.O+..`, so
         `response_data['alert']['olive'] == '.O+..'` should return `True`.)
     """
-    return response_data
+    return _response_data
 
 
-def colored_response(guess: str, response: str, master=False) -> str:
+def colored_response(guess: str, response: str,
+                     mode: Optional[GameMode] = None) -> str:
     """Returns colored text to match the given guess and response"""
+    if mode is None:
+        mode = GameMode()
     text = ''
-    letters = response if master else guess.upper()
+    letters = response if mode.master else guess.upper()
     for letter, symbol in zip(letters, response):
         if symbol == RIGHT:
             text += "\x1b[38;5;102m\x1b[48;5;30m" + letter + "\x1b[0m"
@@ -178,7 +301,8 @@ def _get_master_response(guess: str, answer: str) -> str:
     return response
 
 
-def get_response(guess: str, answer: str, master: bool, use_cache=True) -> str:
+def get_response(guess: str, answer: str, mode: Optional[GameMode] = None,
+                 *, use_cache: bool = True) -> str:
     """Gets the expected response based on the version of Wordle being played.
 
     Args:
@@ -186,8 +310,11 @@ def get_response(guess: str, answer: str, master: bool, use_cache=True) -> str:
             The word which was guessed by the player
         answer:
             A potential answer word to be tested
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
+        mode:
+            A GameMode class instance representing the current game mode
+            (default: None)
+
+    Keyword Args:
         use_cache:
             A boolean value representing whether to use previously-calculated
             response data being stored by the program (default: True)
@@ -195,26 +322,30 @@ def get_response(guess: str, answer: str, master: bool, use_cache=True) -> str:
     Returns:
         A string represention of the expected response.
     """
-    global response_data, response_data_updated
+    global _response_data, _response_data_updated
     # Note: this use of memoization appears to speed up calculations by a
     #       factor of 10, but it also uses between 0.4 and 1.2GB of storage
-    if use_cache and guess in response_data and answer in response_data[guess]:
-        return response_data[guess][answer]
+    if (use_cache and guess in _response_data
+            and answer in _response_data[guess]):
+        return _response_data[guess][answer]
+    if mode is None:
+        mode = GameMode()
     response = ''
-    if master:
+    if mode.master:
         response = _get_master_response(guess, answer)
     else:
         response = _get_easy_response(guess, answer)
     if use_cache:
-        if guess not in response_data:
-            response_data[guess] = {}
-        response_data[guess][answer] = response
-        response_data_updated = True
+        if guess not in _response_data:
+            _response_data[guess] = {}
+        _response_data[guess][answer] = response
+        _response_data_updated = True
     return response
 
 
 def filter_remaining(remaining: list[str], guess: str, response: str,
-                     master: bool, liar=False, use_cache=True) -> list[str]:
+                     mode: Optional[GameMode] = None, *, use_cache: bool = True
+                     ) -> list[str]:
     """Filters a given list of answers based on the given guess and response.
 
     Args:
@@ -224,11 +355,11 @@ def filter_remaining(remaining: list[str], guess: str, response: str,
             The word which was guessed by the player
         response:
             The response from the game after `guess` was entered
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-            (default: False)
+        mode:
+            A GameMode class instance representing the current game mode
+            (default: None)
+
+    Keyword Args:
         use_cache:
             A boolean value representing whether to use previously-calculated
             response data being stored by the program (default: True)
@@ -237,12 +368,14 @@ def filter_remaining(remaining: list[str], guess: str, response: str,
         A new list which only includes answers that are consistent with the
         given guess and response.
     """
+    if mode is None:
+        mode = GameMode()
     filtered = []
     if response == ''.join(RIGHT for _ in guess):
         return [guess]
     for answer in remaining:
-        this_response = get_response(guess, answer, master, use_cache)
-        if liar:
+        this_response = get_response(guess, answer, mode, use_cache=use_cache)
+        if mode.liar:
             # check that exactly one letter in the response is wrong
             if 1 == sum(int(this_response[n] != response[n])
                         for n in range(len(answer))):
@@ -253,8 +386,9 @@ def filter_remaining(remaining: list[str], guess: str, response: str,
 
 
 def count_remaining(remaining: list[str], guess: str, response: str,
-                    limit: Optional[int] = None, master=False, liar=False,
-                    use_cache=True) -> int:
+                    mode: Optional[GameMode] = None,
+                    *, limit: Optional[int] = None, use_cache: bool = True
+                    ) -> int:
     """Counts the number of answers that are consistent with the given info.
 
     Args:
@@ -264,15 +398,14 @@ def count_remaining(remaining: list[str], guess: str, response: str,
             The word which was guessed by the player
         response:
             The response from the game after `guess` was entered
+        mode:
+            A GameMode class instance representing the current game mode
+            (default: None)
+
+    Keyword Args:
         limit:
             The limit which, once exceeded, will immediately return a value;
             if not set, the limit will be ignored (default: None)
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-            (default: False)
-        liar:
-            A boolean value representing whether the game mode is Fibble
-            (default: False)
         use_cache:
             A boolean value representing whether to use previously-calculated
             response data being stored by the program (default: True)
@@ -281,12 +414,14 @@ def count_remaining(remaining: list[str], guess: str, response: str,
         The number of answers consistent with the given guess and response. If
         this value would be greater than `limit`, instead return `limit + 1`.
     """
+    if mode is None:
+        mode = GameMode()
     if limit is None:
         limit = len(remaining)
     count = 0
     for answer in remaining:
-        this_response = get_response(guess, answer, master, use_cache)
-        if liar:
+        this_response = get_response(guess, answer, mode, use_cache=use_cache)
+        if mode.liar:
             # check that exactly one letter in the response is wrong
             if 1 == sum(int(this_response[n] != response[n])
                         for n in range(len(answer))):
@@ -299,8 +434,9 @@ def count_remaining(remaining: list[str], guess: str, response: str,
 
 
 def best_guesses(answers: list[str], guesses: Optional[list[str]] = None,
-                 max_limit: Optional[int] = None, master=False, liar=False,
-                 show=False, return_all=False
+                 mode: Optional[GameMode] = None, *,
+                 max_limit: Optional[int] = None, show: bool = False,
+                 return_all: bool = False, use_cache: bool = True
                  ) -> Union[list[str], dict[str, int]]:
     """Finds the best guesses to narrow down the remaining possible answers.
 
@@ -319,49 +455,53 @@ def best_guesses(answers: list[str], guesses: Optional[list[str]] = None,
         guesses:
             The list of all valid guesses; if not set, the answer list will be
             used instead (default: None)
+        mode:
+            A GameMode class instance representing the current game mode
+            (default: None)
+
+    Keyword Args:
         max_limit:
             The maximum value to be considered when counting remaining answers
             such that no count should be exceed `max_limit + 1` (default: -1)
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-            (default: False)
-        liar:
-            A boolean value representing whether the game mode is Fibble
-            (default: False)
         show:
             A boolean value representing whether a progress bar should be shown
             (default: False)
         return_all:
             A boolean value representing whether to return the worst-case count
             for all guesses as a dict (default: False)
+        use_cache:
+            A boolean value representing whether to use previously-calculated
+            response data being stored by the program (default: True)
 
     Returns:
         A list of all guesses which minimize the worst-case number of remaining
         answers. If `return_all == True`, this will instead return a dict where
         the keys are the guesses and the values are the worst-case counts.
     """
-    if guesses is None:
+    if mode is None:
+        mode = GameMode()
+    if mode.hard or guesses is None or len(guesses) == 0:
         guesses = answers
     if max_limit is None:
         max_limit = len(answers)
     worst_case = dict([(x, 0) for x in guesses])
     score = dict([(x, {}) for x in guesses])
-    limit = max_limit
     for guess in tqdm(guesses, leave=False, ascii=PROGRESS, disable=not show):
         for answer in answers:
-            response = get_response(guess, answer, master)
+            response = get_response(guess, answer, mode, use_cache=use_cache)
             if response not in score[guess]:
                 score[guess][response] = count_remaining(answers, guess,
-                                                         response, limit,
-                                                         master, liar)
+                                                         response, mode,
+                                                         limit=max_limit,
+                                                         use_cache=use_cache)
             worst_case[guess] = max(worst_case[guess], score[guess][response])
-            if worst_case[guess] > limit:
+            if worst_case[guess] > max_limit:
                 break
         if not return_all:
-            limit = min(limit, worst_case[guess])
+            max_limit = min(max_limit, worst_case[guess])
     if return_all:
         return worst_case
-    best = [x for x in guesses if worst_case[x] == limit]
+    best = [x for x in guesses if worst_case[x] == max_limit]
     priority = set(best) & set(answers)
     if len(priority) > 0:
         return list(priority)
@@ -369,8 +509,9 @@ def best_guesses(answers: list[str], guesses: Optional[list[str]] = None,
 
 
 def best_avg_guesses(answers: list[str], guesses: Optional[list[str]] = None,
-                     master=False, liar=False, show=False,
-                     return_all=False) -> list[str]:
+                     mode: Optional[GameMode] = None, *, show: bool = False,
+                     return_all: bool = False, use_cache: bool = True
+                     ) -> list[str]:
     """Finds the best guesses to narrow down the remaining possible answers.
 
     This function minimizes the average result for every legal guess. It will
@@ -388,36 +529,40 @@ def best_avg_guesses(answers: list[str], guesses: Optional[list[str]] = None,
         guesses:
             The list of all valid guesses; if not set, the answer list will be
             used instead (default: None)
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-            (default: False)
-        liar:
-            A boolean value representing whether the game mode is Fibble
-            (default: False)
+        mode:
+            A GameMode class instance representing the current game mode
+            (default: None)
+
+    Keyword Args:
         show:
             A boolean value representing whether a progress bar should be shown
             (default: False)
         return_all:
             A boolean value representing whether to return the worst-case count
             for all guesses as a dict (default: False)
+        use_cache:
+            A boolean value representing whether to use previously-calculated
+            response data being stored by the program (default: True)
 
     Returns:
         A list of all guesses which minimize the average number of remaining
         answers. If `return_all` is `True`, this will instead return a dict
         where the keys are the guesses and the values are the averages.
     """
-    if guesses is None:
+    if mode is None:
+        mode = GameMode()
+    if mode.hard or guesses is None or len(guesses) == 0:
         guesses = answers
-    average = dict([(x, 0) for x in guesses])
+    average = dict([(x, 0.0) for x in guesses])
     count = dict([(x, {}) for x in guesses])
     best_avg = len(answers)
     for guess in tqdm(guesses, leave=False, ascii=PROGRESS, disable=not show):
         for answer in answers:
-            response = get_response(guess, answer, master)
+            response = get_response(guess, answer, mode, use_cache=use_cache)
             if response not in count[guess]:
                 count[guess][response] = count_remaining(answers, guess,
-                                                         response, None,
-                                                         master, liar)
+                                                         response, mode,
+                                                         use_cache=use_cache)
             average[guess] += count[guess][response]
         average[guess] /= len(answers)
         if average[guess] < best_avg:
@@ -432,8 +577,8 @@ def best_avg_guesses(answers: list[str], guesses: Optional[list[str]] = None,
 
 
 def rec_build_best_tree(answers: list[str], guesses: list[str], start: str,
-                        master: bool, liar: bool, depth: int, show=True
-                        ) -> dict:
+                        mode: Optional[GameMode] = None, depth: int = 0,
+                        *, show: bool = True) -> dict:
     """Recursively builds a minimal decision tree for the given starting guess.
 
     Args:
@@ -443,12 +588,14 @@ def rec_build_best_tree(answers: list[str], guesses: list[str], start: str,
             The list of all valid guesses
         start:
             The starting guess to use as the root of the decision tree
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
+        mode:
+            A GameMode class instance representing the current game mode
+            (default: None)
         depth:
             Number of recursive steps remaining until an answer must be reached
+            (default: 0)
+
+    Keyword Args:
         show:
             A boolean value representing whether a progress bar should be shown
             (default: False)
@@ -463,13 +610,15 @@ def rec_build_best_tree(answers: list[str], guesses: list[str], start: str,
     """
     if depth == 0:
         return {}
+    if mode is None:
+        mode = GameMode()
     tree = {start: {}}
     for answer in tqdm(answers, ascii=PROGRESS, disable=not show):
-        response = get_response(start, answer, master)
+        response = get_response(start, answer, mode)
         if response in tree[start]:
             continue
         # after this point, treat this as a loop through all possible responses
-        filtered = filter_remaining(answers, start, response, master, liar)
+        filtered = filter_remaining(answers, start, response, mode)
         if len(filtered) == 1:
             # if there is only one option, then it must be the best guess
             tree[start][response] = {filtered[0]: {}}
@@ -479,7 +628,7 @@ def rec_build_best_tree(answers: list[str], guesses: list[str], start: str,
         limit = 2 ** (depth + 3)
         for next_guess in sorted(guesses, key=lambda x: info[x])[:limit]:
             valid_path = rec_build_best_tree(filtered, guesses, next_guess,
-                                             master, liar, depth - 1, False)
+                                             mode, depth - 1, show=False)
             if next_guess in valid_path:
                 break
         if len(valid_path) == 0:

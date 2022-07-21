@@ -1,5 +1,6 @@
 import time
 from math import ceil, log2
+from typing import Optional
 
 from tqdm import tqdm
 from selenium import webdriver
@@ -7,9 +8,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 try:
-    from common import RIGHT, CLOSE, WRONG, PROGRESS
+    from common import RIGHT, CLOSE, WRONG, PROGRESS, GameMode
+    from solver import SessionInfo
 except ModuleNotFoundError:  # this is only here to help pytest find the module
     from wordle_autosolver.common import RIGHT, CLOSE, WRONG, PROGRESS
+    from wordle_autosolver.common import GameMode
+    from wordle_autosolver.solver import SessionInfo
 
 
 _driver: webdriver.Chrome = None
@@ -28,8 +32,9 @@ def quit_driver() -> None:
         _driver.quit()
 
 
-def open_website(website: str, num_boards=1, master=False, endless=False,
-                 quiet=False) -> int:
+def open_website(website: str, num_boards: int = 1,
+                 mode: Optional[GameMode] = None,
+                 *, quiet: bool = False, dark: bool = True) -> int:
     """Opens the requested website based on the given parameters.
 
     Args:
@@ -38,15 +43,17 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
         num_boards:
             The number of simultaneous games being played (each guess is made
             across all boards at once) (default: 1)
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-            (default: False)
-        endless:
-            A boolean value representing whether the program is in endless mode
-            (default: False)
+        mode:
+            A GameMode class instance representing the current game mode
+            (default: None)
+
+    Keyword Args:
         quiet:
             A boolean value representing whether to print any messages to the
             console (default: False)
+        dark:
+            A boolean value representing whether the website should change to
+            dark mode, if available (default: True)
 
     Returns:
         The number of boards used by the website. This should normally be the
@@ -55,6 +62,8 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
         this result before using the number of boards requested by the user.
     """
     global _driver
+    if mode is None:
+        mode = GameMode()
     if not quiet:
         print("\nConnecting to the target website...")
     options = webdriver.ChromeOptions()
@@ -62,44 +71,40 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
     # stop unexpected messages being printed to the console from the webdriver
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     options.add_argument("--log-level=3")
+    if dark:
+        options.add_argument('--force-dark-mode')
     if quiet:  # do not open an actual browser -- do it all behind-the-scenes
         options.add_argument('--headless')
     # exit any driver that was being used before and reinitialize it
     quit_driver()
     _driver = webdriver.Chrome(options=options)
     # alter the URL if necessary to play the correct version of the chosen game
-    if 'wordzmania' in website and master:
+    if 'wordzmania' in website and mode.master:
         website += 'Master'
     time.sleep(3)
     if any(x in website for x in ('sedecordle', '64ordle')):
-        website += '?mode=' + ('free' if endless else 'daily')
+        website += '?mode=' + ('free' if mode.endless else 'daily')
     elif 'octordle' in website:
-        website += 'free' if endless else 'daily'
-    elif 'quordle' in website and endless:
+        website += 'free' if mode.endless else 'daily'
+    elif 'quordle' in website and mode.endless:
         website += 'practice'
-    elif 'fibble' in website and endless:
+    elif 'fibble' in website and mode.endless:
         website += '?unlimited'
     elif 'nordle' in website:
         website += str(num_boards)
-    # # # CURRENTLY NOT WORKING -- ENDLESS WORDLE WILL DEFAULT TO DAILY WORDLE
-    # elif 'wordle' in website and endless:
-    #     website = 'https://devbanana.itch.io/infinidle'
-    # # #
     _driver.get(website)  # this is when it attempts to connect to the website
     if not quiet:
         print("Connected to '{}'".format(website))
     time.sleep(3)  # give the page elements a few seconds to load
     # must navigate to the correct page on some websites
     if 'wordzmania' in website:
-        num_boards = navigate_wordzy(num_boards, endless, quiet)
+        num_boards = navigate_wordzy(num_boards, mode.endless, quiet=quiet)
     elif 'dordle' in website:
-        navigate_dordle(endless)
-    elif 'infinidle' in website:
-        navigate_infinidle()
+        navigate_dordle(mode.endless, dark_mode=dark)
     elif 'wordle' in website:
-        navigate_wordle()
-    elif 'quordle' in website:
-        navigate_quordle()
+        navigate_wordle(mode.hard)
+    elif 'octordle' in website:
+        navigate_octordle(dark_mode=dark)
     time.sleep(4)
     return num_boards
 
@@ -109,71 +114,61 @@ def open_website(website: str, num_boards=1, master=False, endless=False,
 ###############################################################################
 
 
-def navigate_wordle() -> None:
+def navigate_wordle(hard: bool) -> None:
     """Navigates the Wordle website before beginning the solve."""
-    game_app = _driver.find_element(by=By.TAG_NAME, value='game-app')
-    root = game_app.shadow_root
-    # close instructions dialog
-    modal = root.find_element(By.CSS_SELECTOR, '#game > game-modal')
-    modal_root = modal.shadow_root
-    icon = modal_root.find_element(By.CSS_SELECTOR, 'div > div > div')
-    icon.click()
-    time.sleep(1)
-    # change theme to dark (optional)
-    root.find_element(value='settings-button').click()
-    switch = root.find_element(By.CSS_SELECTOR,
-                               '#game > game-page > game-settings')
-    switch_root = switch.shadow_root
-    switch_root.find_element(value='dark-theme').click()
-    page = root.find_element(By.CSS_SELECTOR, '#game > game-page')
-    page_root = page.shadow_root
-    page_root.find_element(By.CSS_SELECTOR,
-                           'div > div > header > game-icon').click()
-    time.sleep(2)
+    close_icon_xpath = '//*[@id="wordle-app-game"]/div[3]/div/div'
+    close_icon = _driver.find_element(by=By.XPATH, value=close_icon_xpath)
+    close_icon.click()
+    time.sleep(1.5)
+    if hard:
+        _driver.find_element(value='settings-button').click()
+        time.sleep(0.5)
+        _driver.find_element(value='hardMode').click()
+        close_settings_xpath = '//*[@id="wordle-app-game"]/div[3]/div/div[3]'
+        time.sleep(0.25)
+        _driver.find_element(by=By.XPATH, value=close_settings_xpath).click()
+        time.sleep(0.5)
 
 
-def navigate_dordle(endless: bool) -> None:
+def navigate_dordle(endless: bool, *, dark_mode: bool = True) -> None:
     """Navigates the Dordle website before beginning the solve."""
     iframe = _driver.find_element(by=By.XPATH, value='//*[@id="game_drop"]')
     _driver.switch_to.frame(iframe)
     _driver.find_element(value='free' if endless else 'daily').click()
-    # change theme to dark (optional)
-    _driver.find_element(By.XPATH, '//*[@id="body"]/table/tbody/tr/td[5]'
-                         ).click()
-    _driver.find_element(By.XPATH,
-                         '//*[@id="options"]/div[4]/table/tbody/tr/td[3]'
-                         ).click()
-    _driver.find_element(By.XPATH, '//*[@id="body"]/table/tbody/tr/td[5]'
-                         ).click()
-    time.sleep(2)
-
-
-def navigate_quordle() -> None:
-    """Navigates the Quordle website before beginning the solve."""
-    _driver.find_element(By.XPATH,
-                         '//*[@id="root"]/div/nav/div/div[2]/button[2]'
-                         ).click()
-    _driver.find_element(By.XPATH,
-                         '//*[@id="options-dropdown"]/button[1]').click()
+    if dark_mode:
+        _driver.find_element(By.XPATH, '//*[@id="body"]/table/tbody/tr/td[5]'
+                             ).click()
+        _driver.find_element(By.XPATH,
+                             '//*[@id="options"]/div[4]/table/tbody/tr/td[3]'
+                             ).click()
+        _driver.find_element(By.XPATH, '//*[@id="body"]/table/tbody/tr/td[5]'
+                             ).click()
     time.sleep(1)
+
+
+def navigate_octordle(*, dark_mode: bool = True):
+    """Navigates the Octordle website before beginning the solve."""
     _driver.find_element(
-        By.XPATH,
-        '//*[@id="settings-panel"]/div[2]/div[2]/div[1]/label/div[1]'
+        By.XPATH, '//*[@id="cookie-consent"]/div/div[2]/button[1]'
+    ).click()
+    time.sleep(2)
+    if not dark_mode:
+        _driver.find_element(
+            By.XPATH, '//*[@id="header"]/div[1]/a[3]'
         ).click()
-    _driver.find_element(By.XPATH,
-                         '//*[@id="settings-panel"]/div[1]/button').click()
-    time.sleep(1)
+        time.sleep(1)
+        color = _driver.find_element(
+            By.XPATH, '//*[@id="body"]/div/div[2]/div[2]/a'
+        )
+        while color.text != 'Light':
+            color.click()
+            time.sleep(0.5)
+        _driver.find_element(By.XPATH, '//*[@id="header"]/div[1]/a[2]').click()
+        time.sleep(1)
 
 
-def navigate_infinidle() -> None:
-    """Navigates the Infinidle website before beginning the solve."""
-    _driver.find_element(By.CLASS_NAME, 'load_iframe_btn').click()
-    time.sleep(3)
-    iframe = _driver.find_element(by=By.XPATH, value='//*[@id="game_drop"]')
-    _driver.switch_to.frame(iframe)
-
-
-def navigate_wordzy(num_boards: int, endless: bool, quiet=False) -> int:
+def navigate_wordzy(num_boards: int, endless: bool, *, quiet: bool = False
+                    ) -> int:
     """Navigates the Wordzy website before beginning the solve."""
     play_buttons = _driver.find_elements(by=By.CLASS_NAME,
                                          value='play-button')
@@ -236,8 +231,7 @@ def auto_read_fibble_start() -> str:
 ###############################################################################
 
 
-def auto_guess_default(remaining: list[str], guesses: list[str], best: str,
-                       hard: bool, master: bool, endless: bool) -> str:
+def auto_guess_default(session: SessionInfo) -> str:
     """Enters `best` into the webpage and ignores all other arguments.
 
     This is the default `auto_guess` function. Currently used on the following
@@ -249,49 +243,33 @@ def auto_guess_default(remaining: list[str], guesses: list[str], best: str,
     """
     webpage = _driver.find_element(by=By.TAG_NAME, value='html')
     time.sleep(0.5)
-    webpage.send_keys(best)
+    webpage.send_keys(session.actual_best)
     webpage.send_keys(Keys.ENTER)
     time.sleep(1)
-    return best
+    return session.actual_best
 
 
-def auto_response_default(guess: str, remaining: list[str], entered: list[str],
-                          expected: list[int], hard: bool, master: bool,
-                          liar: bool, endless: bool) -> list[tuple[str, int]]:
+def auto_response_default(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the current webpage.
 
     This is the default `auto_response` function. Currently used on the
     following websites: "octordle" and "sedecordle".
 
-    Required Args:
-        guess:
-            The most recent guess entered into the game
-        remaining:
-            The list of remaining possible answers
-        expected:
-            A list of all board indexes where the answer has not been entered
-
-    Ignored Args:
-        entered:
-            A list of all words which have been entered into the game so far
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-        endless:
-            A boolean value representing whether the program is in endless mode
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
+    guess = session.entered[-1]
     responses = []
     boards = list(_driver.find_element(by=By.ID,
                                        value="box-holder-{}".format(n + 1))
-                  for n in range(len(remaining)))
-    for board in tqdm(expected, ascii=PROGRESS, leave=False):
+                  for n in range(len(session.remaining)))
+    for board in tqdm(session.expected, ascii=PROGRESS, leave=False):
         response = ''
         for row in boards[board].find_elements(by=By.TAG_NAME, value="tr"):
             if guess.upper() in ''.join(x.text for x in
@@ -310,32 +288,20 @@ def auto_response_default(guess: str, remaining: list[str], entered: list[str],
     return responses
 
 
-def auto_guess_wordzy(remaining: list[str], guesses: list[str], best: str,
-                      hard: bool, master: bool, endless: bool) -> str:
+def auto_guess_wordzy(session: SessionInfo) -> str:
     """Enters `best` into the current Wordzy game.
 
-    Required Args:
-        remaining:
-            The list of all remaining possible answers
-        best:
-            The most recently calculated best guess according to the solver
-        endless:
-            A boolean value representing whether the program is in endless mode
-
-    Ignored Args:
-        guesses:
-            The list of all valid guesses
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         The word which was selected as the guess.
     """
     global _auto_guess_count, _dialog_closed
     time.sleep(3)
-    validate_wordzy_game(len(remaining), endless)
+    validate_wordzy_game(len(session.remaining), session.mode.endless)
     for stage in _driver.find_elements(by=By.TAG_NAME,
                                        value='cm-display-stage'):
         for button in stage.find_elements(by=By.TAG_NAME, value='button'):
@@ -343,7 +309,7 @@ def auto_guess_wordzy(remaining: list[str], guesses: list[str], best: str,
                     'play_arrow' in button.text and
                     'mat-button-disabled' in button.get_attribute('class')):
                 exit('\n\nGame was not solved in time.\n')
-    if len(remaining) > 1:
+    if len(session.remaining) > 1:
         _auto_guess_count += 1
     keyboard = {}
     for key in _driver.find_element(
@@ -351,7 +317,7 @@ def auto_guess_wordzy(remaining: list[str], guesses: list[str], best: str,
             ).find_elements(
             by=By.CLASS_NAME, value='key'):
         keyboard[key.text.split()[0].strip().lower()] = key
-    if ((not _dialog_closed or len(remaining) == 1) and
+    if ((not _dialog_closed or len(session.remaining) == 1) and
             _auto_guess_count == 3):
         time.sleep(2.5)
         dialogs = _driver.find_elements(by=By.CLASS_NAME,
@@ -359,54 +325,38 @@ def auto_guess_wordzy(remaining: list[str], guesses: list[str], best: str,
         if len(dialogs) > 0:
             dialogs[0].find_element(by=By.TAG_NAME, value='button').click()
             time.sleep(1)
-            if len(remaining) > 1:
+            if len(session.remaining) > 1:
                 _dialog_closed = True
     webpage = _driver.find_element(by=By.TAG_NAME, value='html')
-    webpage.send_keys(best)
+    webpage.send_keys(session.actual_best)
     webpage.send_keys(Keys.ENTER)
     time.sleep(3)
-    return best
+    return session.actual_best
 
 
-def auto_response_wordzy(guess: str, remaining: list[str], entered: list[str],
-                         expected: list[int], hard: bool, master: bool,
-                         liar: bool, endless: bool) -> list[tuple[str, int]]:
+def auto_response_wordzy(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the Wordzy website.
 
-    Required Args:
-        guess:
-            The most recent guess entered into the game
-        remaining:
-            The list of remaining possible answers
-        expected:
-            A list of all board indexes where the answer has not been entered
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        endless:
-            A boolean value representing whether the program is in endless mode
-
-    Ignored Args:
-        entered:
-            A list of all words which have been entered into the game so far
-        hard:
-            A boolean value representing whether the game mode is Hard
-        liar:
-            A boolean value representing whether the game mode is Fibble
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
+    guess = session.entered[-1]
     # check if game has ended
-    n_games = len(remaining)
-    validate_wordzy_game(n_games, endless)
+    n_games = len(session.remaining)
+    validate_wordzy_game(n_games, session.mode.endless)
     # if the game has ended, the last guess must have been correct
     for stage in _driver.find_elements(by=By.TAG_NAME,
                                        value='cm-display-stage'):
         for button in stage.find_elements(by=By.TAG_NAME, value='button'):
             if (button.get_attribute('color') == 'green' and
                     'play_arrow' in button.text):
-                return [(''.join([RIGHT for _ in guess]), expected[0])]
+                return [(''.join([RIGHT for _ in guess]), session.expected[0])]
     # if not, find the elements necessary to read each board's response
     responses = []
     focus_key = None
@@ -429,29 +379,26 @@ def auto_response_wordzy(guess: str, remaining: list[str], entered: list[str],
                 focus_key = button
                 break
     # read the response on each board that is still expected to exist
-    for board in tqdm(expected, ascii=PROGRESS, leave=False):
-        validate_wordzy_game(n_games, endless)
+    for board in tqdm(session.expected, ascii=PROGRESS, leave=False):
+        validate_wordzy_game(n_games, session.mode.endless)
         # find the most recent response
         while not (focus_key.text.split()[-1]).isnumeric():
             if 'ENTER' in focus_key.text:
                 break
             focus_key.click()
             time.sleep(0.5)
-        # I'm not 100% sure why this is here, but I'm afraid to delete it
-        if (('ENTER' not in focus_key.text and
-             board != int(focus_key.text.split()[-1]) - 1) or
-            ('ENTER' in focus_key.text and
-             len(expected) > 1 and
-             board == expected[-1] and
-             guess in remaining[board])):
-            responses.append((''.join(RIGHT for _ in guess), board))
-            continue
-        # the rest of this makes sense -- read the response on the focused game
+        # read the response on the focused game
         focused = stage.find_elements(by=By.CLASS_NAME, value='focused')
         if len(focused) == 0:
             focused = stage.find_element(by=By.TAG_NAME, value='cm-word-grid')
         else:
             focused = focused[0]
+        # if the expected board is not found, it must have been completed
+        if f'grid{board}' not in focused.find_element(
+            By.CLASS_NAME, 'cdk-virtual-scroll-viewport'
+        ).get_attribute('class') and guess in session.remaining[board]:
+            responses.append((''.join(RIGHT for _ in guess), board))
+            continue
         stuck = False
         response = ''
         while len(response) != len(guess):
@@ -466,7 +413,7 @@ def auto_response_wordzy(guess: str, remaining: list[str], entered: list[str],
                 response = ''
                 letters = word.find_elements(by=By.CLASS_NAME, value='letter')
                 colors = letters
-                if master:
+                if session.mode.master:
                     colors = word.find_elements(by=By.CLASS_NAME, value='peg')
                 entry = ''.join(x.text.strip() for x in letters).lower()
                 if guess == entry:
@@ -485,46 +432,28 @@ def auto_response_wordzy(guess: str, remaining: list[str], entered: list[str],
     return responses
 
 
-def auto_response_wordle(guess: str, remaining: list[str], entered: list[str],
-                         expected: list[int], hard: bool, master: bool,
-                         liar: bool, endless: bool) -> list[tuple[str, int]]:
+def auto_response_wordle(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the Wordle website.
 
-    Required Args:
-        guess:
-            The most recent guess entered into the game
-
-    Ignored Args:
-        remaining:
-            The list of remaining possible answers
-        entered:
-            A list of all words which have been entered into the game so far
-        expected:
-            A list of all board indexes where the answer has not been entered
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-        endless:
-            A boolean value representing whether the program is in endless mode
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
     response = ''
-    game_app = _driver.find_element(by=By.TAG_NAME, value='game-app')
-    root = game_app.shadow_root
-    board = root.find_element(By.CSS_SELECTOR, '#board')
-    for game_row in board.find_elements(By.TAG_NAME, 'game-row'):
-        if game_row.get_attribute('letters') == guess:
-            root = game_row.shadow_root
-            break
-    row = root.find_element(by=By.CSS_SELECTOR, value='div')
-    for tile in row.find_elements(by=By.TAG_NAME, value='game-tile'):
-        evaluation = tile.get_attribute('evaluation')
+    time.sleep(1)
+    row = _driver.find_element(
+        By.XPATH,
+        ('//*[@id="wordle-app-game"]/div[1]/div/'
+         f'div[{len(session.entered)}]')
+    )
+    tiles = row.find_elements(by=By.CSS_SELECTOR, value='div > div')
+    for tile in tiles:
+        evaluation = tile.get_attribute('data-state')
         if evaluation == 'absent':
             response += WRONG
         elif evaluation == 'present':
@@ -534,49 +463,23 @@ def auto_response_wordle(guess: str, remaining: list[str], entered: list[str],
     return [(response, 0)]
 
 
-def auto_response_infinidle(guess: str, remaining: list[str],
-                            entered: list[str], expected: list[int],
-                            hard: bool, master: bool, liar: bool, endless: bool
-                            ) -> list[tuple[str, int]]:
-    """WARNING: Currently not implemented."""
-    _driver.save_screenshot('infinidle/ss.png')
-    # now check rgb values of specific pixels to figure out what's going on
-    pass
-
-
-def auto_response_dordle(guess: str, remaining: list[str], entered: list[str],
-                         expected: list[int], hard: bool, master: bool,
-                         liar: bool, endless: bool) -> list[tuple[str, int]]:
+def auto_response_dordle(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the Dordle website.
 
-    Required Args:
-        guess:
-            The most recent guess entered into the game
-        expected:
-            A list of all board indexes where the answer has not been entered
-
-    Ignored Args:
-        remaining:
-            The list of remaining possible answers
-        entered:
-            A list of all words which have been entered into the game so far
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-        endless:
-            A boolean value representing whether the program is in endless mode
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
+    guess = session.entered[-1]
     game = _driver.find_element(by=By.XPATH, value='//*[@id="game"]')
     responses = []
     boards = list(game.find_elements(by=By.CLASS_NAME, value="table_guesses"))
-    for board in expected:
+    for board in session.expected:
         response = ''
         for row in boards[board].find_elements(by=By.TAG_NAME, value="tr"):
             if guess.upper() in ''.join(x.text for x in
@@ -595,39 +498,23 @@ def auto_response_dordle(guess: str, remaining: list[str], entered: list[str],
     return responses
 
 
-def auto_response_quordle(guess: str, remaining: list[str], entered: list[str],
-                          expected: list[int], hard: bool, master: bool,
-                          liar: bool, endless: bool) -> list[tuple[str, int]]:
+def auto_response_quordle(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the Quordle website.
 
-    Required Args:
-        guess:
-            The most recent guess entered into the game
-        expected:
-            A list of all board indexes where the answer has not been entered
-
-    Ignored Args:
-        remaining:
-            The list of remaining possible answers
-        entered:
-            A list of all words which have been entered into the game so far
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-        endless:
-            A boolean value representing whether the program is in endless mode
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
+    guess = session.entered[-1]
     responses = []
     boards = list(_driver.find_elements(by=By.XPATH,
                                         value='//*[@role="table"]'))
-    for board in expected:
+    for board in session.expected:
         response = ''
         for row in boards[board].find_elements(by=By.XPATH,
                                                value='*[@role="row"]'):
@@ -646,31 +533,44 @@ def auto_response_quordle(guess: str, remaining: list[str], entered: list[str],
     return responses
 
 
-def auto_response_duotrigordle(guess: str, remaining: list[str],
-                               entered: list[str], expected: list[int],
-                               hard: bool, master: bool, liar: bool,
-                               endless: bool) -> list[tuple[str, int]]:
+def auto_response_octordle(session: SessionInfo) -> list[tuple[str, int]]:
+    """Finds and returns the expected response(s) on the Quordle website.
+
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
+
+    Returns:
+        A list of 2-tuples where the first element is the response and the
+        second element is the index of the board that gave that response.
+    """
+    responses = []
+    for board in session.expected:
+        game_board = _driver.find_element(value=f'board-{board + 1}')
+        response = ''
+        rows = game_board.find_elements(By.CLASS_NAME, 'board-row')
+        for letter in rows[len(session.entered) - 1].find_elements(
+            By.CLASS_NAME, 'letter'
+        ):
+            info = letter.get_attribute('class')
+            if 'exact-match' in info:
+                response += RIGHT
+            elif 'word-match' in info:
+                response += CLOSE
+            else:
+                response += WRONG
+        responses.append((response, board))
+    return responses
+
+
+def auto_response_duotrigordle(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the Duotrigordle website.
 
-    Required Args:
-        entered:
-            A list of all words which have been entered into the game so far
-        expected:
-            A list of all board indexes where the answer has not been entered
-
-    Ignored Args:
-        guess:
-            The most recent guess entered into the game
-        remaining:
-            The list of remaining possible answers
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-        endless:
-            A boolean value representing whether the program is in endless mode
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
@@ -678,10 +578,10 @@ def auto_response_duotrigordle(guess: str, remaining: list[str],
     """
     responses = []
     boards = list(_driver.find_elements(by=By.CLASS_NAME, value="board"))
-    for board in tqdm(expected, ascii=PROGRESS, leave=False):
+    for board in tqdm(session.expected, ascii=PROGRESS, leave=False):
         response = ''
         cells = boards[board].find_elements(by=By.CLASS_NAME, value="cell")
-        index = (len(entered) - 1) * 5
+        index = (len(session.entered) - 1) * 5
         for cell in cells[index:index + 5]:
             label = cell.get_attribute("class")
             if 'green' in label:
@@ -694,40 +594,24 @@ def auto_response_duotrigordle(guess: str, remaining: list[str],
     return responses
 
 
-def auto_response_64ordle(guess: str, remaining: list[str], entered: list[str],
-                          expected: list[int], hard: bool, master: bool,
-                          liar: bool, endless: bool) -> list[tuple[str, int]]:
+def auto_response_64ordle(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the 64ordle website.
 
-    Required Args:
-        guess:
-            The most recent guess entered into the game
-        remaining:
-            The list of remaining possible answers
-        expected:
-            A list of all board indexes where the answer has not been entered
-
-    Ignored Args:
-        entered:
-            A list of all words which have been entered into the game so far
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-        endless:
-            A boolean value representing whether the program is in endless mode
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
+    guess = session.entered[-1]
     responses = []
     boards = list(_driver.find_element(by=By.ID,
                                        value="box-holder-{}".format(n + 1))
-                  for n in range(len(remaining)))
-    for board in tqdm(expected, ascii=PROGRESS, leave=False):
+                  for n in range(len(session.remaining)))
+    for board in tqdm(session.expected, ascii=PROGRESS, leave=False):
         response = ''
         for row in boards[board].find_elements(by=By.TAG_NAME, value="tr"):
             if guess.upper() in ''.join(x.text for x in
@@ -746,39 +630,23 @@ def auto_response_64ordle(guess: str, remaining: list[str], entered: list[str],
     return responses
 
 
-def auto_response_nordle(guess: str, remaining: list[str], entered: list[str],
-                         expected: list[int], hard: bool, master: bool,
-                         liar: bool, endless: bool) -> list[tuple[str, int]]:
+def auto_response_nordle(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the Nordle website.
 
-    Required Args:
-        guess:
-            The most recent guess entered into the game
-        expected:
-            A list of all board indexes where the answer has not been entered
-
-    Ignored Args:
-        remaining:
-            The list of remaining possible answers
-        entered:
-            A list of all words which have been entered into the game so far
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-        endless:
-            A boolean value representing whether the program is in endless mode
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
+    guess = session.entered[-1]
     game = _driver.find_element(by=By.ID, value='words')
     columns = list(game.find_elements(by=By.CLASS_NAME, value='column'))
     responses = []
-    for board in tqdm(expected, ascii=PROGRESS, leave=False):
+    for board in tqdm(session.expected, ascii=PROGRESS, leave=False):
         response = ''
         for row in columns[board].find_elements(By.CLASS_NAME, 'guess'):
             word = ''.join(cell.text[0] for cell in
@@ -796,37 +664,22 @@ def auto_response_nordle(guess: str, remaining: list[str], entered: list[str],
     return responses
 
 
-def auto_response_fibble(guess: str, remaining: list[str], entered: list[str],
-                         expected: list[int], hard: bool, master: bool,
-                         liar: bool, endless: bool) -> list[tuple[str, int]]:
+def auto_response_fibble(session: SessionInfo) -> list[tuple[str, int]]:
     """Finds and returns the expected response(s) on the Fibble website.
 
-    Required Args:
-        entered:
-            A list of all words which have been entered into the game so far
-
-    Ignored Args:
-        guess:
-            The most recent guess entered into the game
-        remaining:
-            The list of remaining possible answers
-        expected:
-            A list of all board indexes where the answer has not been entered
-        hard:
-            A boolean value representing whether the game mode is Hard
-        master:
-            A boolean value representing whether the game mode is Wordzy Master
-        liar:
-            A boolean value representing whether the game mode is Fibble
-        endless:
-            A boolean value representing whether the program is in endless mode
+    Args:
+        session:
+            A SessionInfo instance containing all information about the current
+            set of games being solved
 
     Returns:
         A list of 2-tuples where the first element is the response and the
         second element is the index of the board that gave that response.
     """
     response = ''
-    row = _driver.find_elements(by=By.CLASS_NAME, value='Row')[len(entered)]
+    row = _driver.find_elements(by=By.CLASS_NAME, value='Row')[
+        len(session.entered) - 1
+    ]
     for letter in row.find_elements(by=By.CLASS_NAME, value='Row-letter'):
         label = letter.get_attribute('aria-label')
         if 'correct' in label:
@@ -841,7 +694,7 @@ def auto_response_fibble(guess: str, remaining: list[str], entered: list[str],
 SITE_INFO: dict[str, tuple] = {
     'wordle': (
         'https://www.nytimes.com/games/wordle/index.html',
-        1, True, False, False,
+        1, False, False, False,
         auto_guess_default, auto_response_wordle
     ),
     'dordle': (
@@ -857,7 +710,7 @@ SITE_INFO: dict[str, tuple] = {
     'octordle': (
         'https://octordle.com/',
         8, False, False, False,
-        auto_guess_default, auto_response_default
+        auto_guess_default, auto_response_octordle
     ),
     'sedecordle': (
         'https://www.sedecordle.com/',
@@ -881,17 +734,12 @@ SITE_INFO: dict[str, tuple] = {
     ),
     'wordzy': (
         'https://wordzmania.com/Wordzy/',
-        0, False, True, False,
+        0, False, False, False,
         auto_guess_wordzy, auto_response_wordzy
     ),
     'fibble': (
         'https://fibble.xyz/',
         1, False, False, True,
         auto_guess_default, auto_response_fibble
-    ),
-    'infinidle': (
-        'https://devbanana.itch.io/infinidle',
-        1, False, False, False,
-        auto_guess_default, auto_response_infinidle
     )
 }

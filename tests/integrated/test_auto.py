@@ -140,20 +140,6 @@ def test_auto_solver__nordle(default_session):
     auto.quit_driver()
 
 
-# def test_auto_solver__fibble(default_session):
-#     mode = GameMode(GameMode.LIAR)
-#     (addr, num_boards, mode.hard, mode.master, mode.liar,
-#         auto_guess, auto_response) = auto.SITE_INFO['fibble']
-#     session = default_session.copy(
-#         mode=mode,
-#         num_boards=auto.open_website(addr, num_boards, mode, quiet=True)
-#     )
-#     assert(auto.get_driver().current_url == addr)
-#     session = solve_wordle(session, auto_guess, auto_response)
-#     assert(len(session.entered) <= session.num_boards + 8)
-#     auto.quit_driver()
-
-
 def test_auto_solver__wordzy__one_easy(default_session):
     NUM_BOARDS = 1
     mode = GameMode()

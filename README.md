@@ -8,7 +8,7 @@
 ## Setup
 You may download and install this package using pip
 ```bash
-pip install wordle_autosolver
+pip install wordle-autosolver
 ```
 Google Chrome and ChromeDriver are also required to be installed on your device. There is a python package that will do this for you called [`chromedriver-autoinstaller`](https://pypi.org/project/chromedriver-autoinstaller/).
 

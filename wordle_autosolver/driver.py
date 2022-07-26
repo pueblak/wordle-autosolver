@@ -171,7 +171,7 @@ def main() -> None:  # pragma: no cover
             (addr, _, mode.hard, mode.master, mode.liar,
                 auto_guess, auto_response) = SITE_INFO[site]
         elif site == 'fibble':
-            (addr, _, mode.hard, mode.master, mode.liar,
+            (addr, n_games, mode.hard, mode.master, mode.liar,
                 auto_guess, auto_response) = SITE_INFO[site]
         else:
             (addr, n_games, mode.hard, mode.master, mode.liar,
@@ -202,7 +202,8 @@ def main() -> None:  # pragma: no cover
                               start, mode)
         simulate(session, sim, show=not quiet)
     elif sim == -1:
-        best_case = [-8, []]
+        best_case = -8
+        best_start = []
         worst_case = {}
         with open('data/ordered_guesses.json', 'r') as ordered:
             worst_case = load(ordered)
@@ -210,13 +211,14 @@ def main() -> None:  # pragma: no cover
         for starter in tqdm(modified, ascii=PROGRESS):
             session = SessionInfo(n_games, answers, guesses, saved_best, freq,
                                   [starter], mode)
-            _, worst = simulate(session, len(answers), best_case[0], False)
-            if worst == best_case[0]:
-                best_case[1].append(starter)
-            elif worst > best_case[0]:
-                best_case[0] = worst
-                best_case[1] = [starter]
-        print(best_case)
+            _, worst = simulate(session, len(answers), best_case, show=False,
+                                return_if_worse=True)
+            if worst == best_case:
+                best_start.append(starter)
+            elif worst > best_case:
+                best_case = worst
+                best_start = [starter]
+        print(best_case, '=', best_start)
     if sim != 0:
         save_all_data(session.hard, session.master, session.liar,
                       get_best_guess_updated(), saved_best,

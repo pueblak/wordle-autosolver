@@ -7,7 +7,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
-try:
+try:  # pragma: no cover
     from common import RIGHT, CLOSE, WRONG, PROGRESS, GameMode
     from solver import SessionInfo
 except ModuleNotFoundError:  # this is only here to help pytest find the module
@@ -197,12 +197,12 @@ def navigate_wordzy(num_boards: int, endless: bool, *, quiet: bool = False
         play_buttons[0].click()
     else:
         play_buttons[1].click()
-    if not quiet:
+    if not quiet:  # pragma: no cover
         print("Navigated to '{}'.".format(_driver.current_url))
     return num_boards
 
 
-def validate_wordzy_game(num_boards: int, endless: bool):
+def validate_wordzy_game(num_boards: int, endless: bool):  # pragma: no cover
     """Checks if the Wordzy website is behaving correctly."""
     stage = _driver.find_elements(by=By.TAG_NAME, value='cm-game-stage')
     while len(stage) == 0:

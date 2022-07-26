@@ -1,7 +1,4 @@
-from pytest import fixture
-
 import wordle_autosolver.common as common
-from wordle_autosolver.data import load_all_data
 
 
 ###############################################################################
@@ -108,6 +105,7 @@ def test_game_mode_enum__complex():
     assert(not mode.liar)
     assert(not mode.play)
     assert(mode.endless)
+    assert(mode == common.GameMode.MASTER_ENDLESS)
     mode = common.GameMode(common.GameMode.PLAY_LIAR)
     assert(not mode.default)
     assert(not mode.hard)
@@ -222,16 +220,15 @@ def test_master_response__duplicate_letters():
 
 
 def test_get_response__all_easy():
-    mode = common.GameMode()
-    assert(common.get_response("ratio", "mucus", mode, use_cache=False)
+    assert(common.get_response("ratio", "mucus", use_cache=False)
            == ".....")
-    assert(common.get_response("ratio", "macho", mode, use_cache=False)
+    assert(common.get_response("ratio", "macho", use_cache=False)
            == ".O..O")
-    assert(common.get_response("amber", "rhyme", mode, use_cache=False)
+    assert(common.get_response("amber", "rhyme", use_cache=False)
            == ".+.++")
-    assert(common.get_response("hater", "bathe", mode, use_cache=False)
+    assert(common.get_response("hater", "bathe", use_cache=False)
            == "+OO+.")
-    assert(common.get_response("added", "diced", mode, use_cache=False)
+    assert(common.get_response("added", "diced", use_cache=False)
            == ".+.OO")
 
 
@@ -254,49 +251,22 @@ def test_get_response__all_master():
 ###############################################################################
 
 
-@fixture
-def example_guess_remaining():
-    guess = "trips"
-    remaining = ["which", "their", "there", "would", "about", "could", "other",
-                 "these", "first", "after", "where", "those", "being", "while",
-                 "right", "world", "still", "think", "never", "again", "might",
-                 "under", "three", "state", "going", "place", "found", "great",
-                 "every", "since", "power", "human", "water", "house", "women",
-                 "small", "often", "order", "point", "given", "until", "using",
-                 "table", "group", "press", "large", "later", "night", "study",
-                 "among", "young", "shall", "early", "thing", "woman", "level",
-                 "light", "heart", "white", "least", "value", "model", "black",
-                 "along", "whole", "known", "child", "voice", "sense", "death",
-                 "above", "taken", "began", "local", "heard", "doing", "front",
-                 "money", "close", "court", "party", "space", "short", "quite",
-                 "clear", "blood", "story", "class", "leave", "field", "third",
-                 "today", "south", "major", "force", "stood", "alone", "whose",
-                 "maybe", "start", "bible", "shown", "total", "cause", "north",
-                 "sound", "tried", "earth", "bring", "lower", "truth", "paper",
-                 "music", "focus", "mouth", "image", "range", "legal", "below",
-                 "trade", "media", "ready", "wrong", "speak", "green", "floor",
-                 "china", "smile", "issue", "stage", "basic", "final", "cross",
-                 "share", "happy", "river", "phone", "round", "basis", "meant"]
-    return guess, remaining
-
-
 def test_filter_remaining__easy(example_guess_remaining):
-    mode = common.GameMode()
     guess, remaining = example_guess_remaining
-    assert(common.filter_remaining(remaining, guess, "OOOOO", mode,
+    assert(common.filter_remaining(remaining, guess, "OOOOO",
                                    use_cache=False) == [guess])
     response = common._get_easy_response(guess, "heart")
-    assert(common.filter_remaining(remaining, guess, response, mode,
+    assert(common.filter_remaining(remaining, guess, response,
                                    use_cache=False)
            == ['other', 'after', 'water', 'later', 'heart', 'court', 'north',
                'earth'])
     response = common._get_easy_response(guess, "child")
-    assert(common.filter_remaining(remaining, guess, response, mode,
+    assert(common.filter_remaining(remaining, guess, response,
                                    use_cache=False)
            == ['which', 'being', 'while', 'going', 'child', 'voice', 'doing',
                'china'])
     response = common._get_easy_response(guess, "sound")
-    assert(common.filter_remaining(remaining, guess, response, mode,
+    assert(common.filter_remaining(remaining, guess, response,
                                    use_cache=False)
            == ['house', 'small', 'shall', 'sense', 'close', 'whose', 'shown',
                'cause', 'sound'])
@@ -367,18 +337,17 @@ def test_filter_remaining__liar(example_guess_remaining):
 
 
 def test_count_remaining__easy(example_guess_remaining):
-    mode = common.GameMode()
     guess, remaining = example_guess_remaining
     response = common._get_easy_response(guess, "heart")
-    assert(common.count_remaining(remaining, guess, response, mode,
+    assert(common.count_remaining(remaining, guess, response,
                                   use_cache=False)
            == 8)
     response = common._get_easy_response(guess, "child")
-    assert(common.count_remaining(remaining, guess, response, mode,
+    assert(common.count_remaining(remaining, guess, response,
                                   use_cache=False)
            == 8)
     response = common._get_easy_response(guess, "sound")
-    assert(common.count_remaining(remaining, guess, response, mode,
+    assert(common.count_remaining(remaining, guess, response,
                                   use_cache=False)
            == 9)
 
@@ -422,58 +391,48 @@ def test_count_remaining__liar(example_guess_remaining):
 ###############################################################################
 
 
-@fixture
-def default_answers():
-    return load_all_data(False, False, False, False, False)[0]
-
-
-@fixture
-def default_guesses():
-    return load_all_data(False, False, False, False, False)[1]
-
-
-def test_best_guess__easy(default_guesses):
+def test_best_guess__easy(small_sample_words):
     # note: everything is converted to a set because the order does not matter
     assert(set(common.best_guesses(['lying', 'click', 'cliff', 'pupil',
                                     'cling', 'flick', 'fling', 'clink'],
-                                   default_guesses, use_cache=False))
+                                   small_sample_words, use_cache=False))
            == set(['flick', 'fling', 'clink']))
     assert(set(common.best_guesses(['crown', 'croup', 'crony', 'croon'],
-                                   default_guesses, use_cache=False))
+                                   small_sample_words, use_cache=False))
            == set(['crown', 'croon']))
     assert(set(common.best_guesses(['bring', 'drink', 'brink', 'grind',
                                     'wring'],
-                                   default_guesses, use_cache=False))
+                                   small_sample_words, use_cache=False))
            == set(['bring']))
     assert(set(common.best_guesses(['penny', 'venue', 'penne', 'peppy'],
-                                   default_guesses, use_cache=False))
+                                   small_sample_words, use_cache=False))
            == set(['penny', 'venue', 'penne', 'peppy']))
     assert(set(common.best_guesses(['track', 'draft', 'actor', 'craft',
                                     'altar', 'tract', 'graft', 'trawl',
                                     'argot'],
-                                   default_guesses, use_cache=False))
+                                   small_sample_words, use_cache=False))
            == set(['diact']))
 
 
-def test_best_guess__master(default_guesses):
+def test_best_guess__master(small_sample_words):
     mode = common.GameMode(common.GameMode.MASTER)
     # note: everything is converted to a set because the order does not matter
     assert(set(common.best_guesses(['forth', 'motor', 'forum', 'robot',
                                     'booth', 'broth', 'rotor', 'motto',
                                     'froth'],
-                                   default_guesses, mode, use_cache=False))
+                                   small_sample_words, mode, use_cache=False))
            == set(['booth', 'broth', 'robot', 'rotor']))
     assert(set(common.best_guesses(['allow', 'cloud', 'cloth', 'flora',
                                     'alloy', 'aloof', 'allay', 'aloha'],
-                                   default_guesses, mode, use_cache=False))
+                                   small_sample_words, mode, use_cache=False))
            == set(['allow', 'alloy', 'allay', 'flora', 'cloth']))
     assert(set(common.best_guesses(['baker', 'maker', 'wager', 'wafer',
                                     'waver', 'gamer', 'gazer', 'faker',
                                     'waxer'],
-                                   default_guesses, mode, use_cache=False))
+                                   small_sample_words, mode, use_cache=False))
            == set(['wager']))
     assert(set(common.best_guesses(['women', 'minor'],
-                                   default_guesses, mode, use_cache=False))
+                                   small_sample_words, mode, use_cache=False))
            == set(['women', 'minor']))
 
 
@@ -486,52 +445,42 @@ def test_best_guess__return_all():
     assert(worst_case['croup'] == 3)
 
 
-# def test_best_guess__using_filter_remaining(default_answers, default_guesses)
-#     remaining = common.filter_remaining(default_answers, 'ratio', '.....',
-#                                         False, use_cache=False)
-#     assert(set(common.best_guesses(remaining, default_guesses))
-#            == set(('melds', 'lends')))
-#     remaining = common.filter_remaining(default_answers, 'spine', '.....',
-#                                         True, use_cache=False)
-#     assert(set(common.best_guesses(remaining, default_guesses, master=True))
-#            == set(('torch',)))
-
-
 ###############################################################################
 #                            TEST AVERAGE GUESSES                             #
 ###############################################################################
 
 
-def test_average_guess__easy(default_guesses):
+def test_average_guess__easy(small_sample_words):
     # note: everything is converted to a set because the order does not matter
     assert(set(common.best_avg_guesses(['lying', 'click', 'cliff', 'pupil',
                                         'cling', 'flick', 'fling', 'clink'],
-                                       default_guesses, use_cache=False))
+                                       small_sample_words, use_cache=False))
            == set(['flick', 'fling', 'clink']))
     assert(set(common.best_avg_guesses(['crown', 'croup', 'crony', 'croon'],
-                                       default_guesses, use_cache=False))
+                                       small_sample_words, use_cache=False))
            == set(['crown', 'croon']))
     assert(set(common.best_avg_guesses(['bring', 'drink', 'brink', 'grind',
                                         'wring'],
-                                       default_guesses, use_cache=False))
+                                       small_sample_words, use_cache=False))
            == set(['bring']))
     assert(set(common.best_avg_guesses(['penny', 'venue', 'penne', 'peppy'],
-                                       default_guesses, use_cache=False))
+                                       small_sample_words, use_cache=False))
            == set(['penny', 'venue', 'penne', 'peppy']))
     assert(set(common.best_avg_guesses(['track', 'draft', 'actor', 'craft',
                                         'altar', 'tract', 'graft', 'trawl',
                                         'argot'],
-                                       default_guesses, use_cache=False))
+                                       small_sample_words, use_cache=False))
            == set(['diact']))
 
 
-def test_average_guess__master(default_guesses):
+def test_average_guess__master(small_sample_words):
     mode = common.GameMode(common.GameMode.MASTER)
     # note: everything is converted to a set because the order does not matter
     assert(set(common.best_avg_guesses(['baker', 'maker', 'wager', 'wafer',
                                         'waver', 'gamer', 'gazer', 'faker',
                                         'waxer'],
-                                       default_guesses, mode, use_cache=False))
+                                       small_sample_words, mode,
+                                       use_cache=False))
            == set(['gowfs']))
 
 
@@ -575,17 +524,9 @@ def test_rec_build_best_tree__bad(example_guess_remaining, default_guesses):
            == {})
 
 
-def test_rec_build_best_tree__good(example_guess_remaining, default_guesses):
-    _, answers = example_guess_remaining
-    assert(common.rec_build_best_tree(answers, default_guesses, 'trips',
-                                      depth=3, show=False)
-           != {})
-
-
-def test_rec_build_best_tree__best(example_guess_remaining, default_guesses):
-    _, answers = example_guess_remaining
-    assert(common.rec_build_best_tree(answers, default_guesses, 'roate',
-                                      depth=2, show=False)
+def test_rec_build_best_tree__good(small_sample_words, default_guesses):
+    assert(common.rec_build_best_tree(small_sample_words, default_guesses,
+                                      'roate', depth=2, show=False)
            != {})
 
 
@@ -594,14 +535,14 @@ def test_rec_build_best_tree__best(example_guess_remaining, default_guesses):
 ###############################################################################
 
 def test_best_guess_updated():
-    common.set_best_guess_updated(True)
+    common.set_best_guess_updated()
     assert(common.get_best_guess_updated() is True)
     common.set_best_guess_updated(False)
     assert(common.get_best_guess_updated() is False)
 
 
 def test_response_data_updated():
-    common.set_response_data_updated(True)
+    common.set_response_data_updated()
     assert(common.get_response_data_updated() is True)
     common.set_response_data_updated(False)
     assert(common.get_response_data_updated() is False)
@@ -614,7 +555,7 @@ def test_response_data():
 
 
 def test_colored_response():
-    assert(common.colored_response('trips', 'O.+O.', common.GameMode())
+    assert(common.colored_response('trips', 'O.+O.')
            == ("\x1b[38;5;102m\x1b[48;5;30mT\x1b[0m"
                "R"
                "\x1b[38;5;103m\x1b[48;5;30mI\x1b[0m"

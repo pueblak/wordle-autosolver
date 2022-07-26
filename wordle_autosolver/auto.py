@@ -7,7 +7,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
-try:
+try:  # pragma: no cover
     from common import RIGHT, CLOSE, WRONG, PROGRESS, GameMode
     from solver import SessionInfo
 except ModuleNotFoundError:  # this is only here to help pytest find the module

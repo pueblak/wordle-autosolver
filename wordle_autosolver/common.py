@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from typing import Union, Optional
 
@@ -40,13 +42,30 @@ class GameMode():
     PLAY_MASTER_ENDLESS = 14
     PLAY_LIAR_ENDLESS = 15
 
-    def __init__(self, value=DEFAULT):
+    def __init__(self, value: int = DEFAULT):
         self.value = value
 
-    def __eq__(self, other):
+    def __eq__(self, other: GameMode):
         if isinstance(other, int):
             return self.value == other
-        return isinstance(other, __class__) and self.value == other.value
+        return isinstance(other, GameMode) and self.value == other.value
+
+    def __str__(self):
+        elems = ['PLAY'] if self.play else []
+        if self.hard:
+            elems.append('HARD')
+        elif self.master:
+            elems.append('MASTER')
+        elif self.liar:
+            elems.append('LIAR')
+        else:
+            elems.append('DEFAULT')
+        if self.endless:
+            elems.append('ENDLESS')
+        return '_'.join(elems)
+
+    def __repr__(self):
+        return 'GameMode.' + str(self)
 
     @property
     def default(self) -> bool:
@@ -119,23 +138,6 @@ class GameMode():
             self.value &= self.MODE_MASK | self.PLAY_MASK
             if target:
                 self.value |= self.ENDLESS_MASK
-
-    def __str__(self):
-        elems = ['PLAY'] if self.play else []
-        if self.hard:
-            elems.append('HARD')
-        elif self.master:
-            elems.append('MASTER')
-        elif self.liar:
-            elems.append('LIAR')
-        else:
-            elems.append('DEFAULT')
-        if self.endless:
-            elems.append('ENDLESS')
-        return '_'.join(elems)
-
-    def __repr__(self):
-        return 'GameMode.' + str(self)
 
 
 def set_best_guess_updated(value: bool = True) -> None:

@@ -13,13 +13,14 @@ try:  # pragma: no cover
     from solver import SessionInfo
 except ModuleNotFoundError:  # this is only here to help pytest find the module
     from wordle_autosolver.common import RIGHT, CLOSE, WRONG, PROGRESS
-    from wordle_autosolver.common import GameMode
+    from wordle_autosolver.common import GameMode, IS_MS_OS
     from wordle_autosolver.solver import SessionInfo
 
 
 # Note: The following values come from the default installation locations
 # used by GitHub-hosted runners
-CHROMEDRIVERPATH_WINDOWS = 'C:/SeleniumWebDrivers/ChromeDriver'
+CHROMEDRIVERPATH_WINDOWS = ('C:/SeleniumWebDrivers/ChromeDriver'
+                            '/chromedriver.exe')
 CHROMEDRIVERPATH_LINUX = '/usr/local/share/chrome_driver'
 
 _driver: webdriver.Chrome = None

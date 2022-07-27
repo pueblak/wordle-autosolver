@@ -19,8 +19,11 @@ except ModuleNotFoundError:  # this is only here to help pytest find the module
 
 # Note: The following values come from the default installation locations
 # used by GitHub-hosted runners
+CHROMEPATH_WINDOWS = ('C:/Program Files (x86)/Google/Chrome/Application'
+                      '/chrome.exe')
 CHROMEDRIVERPATH_WINDOWS = ('C:/SeleniumWebDrivers/ChromeDriver'
                             '/chromedriver.exe')
+CHROMEPATH_LINUX = '/usr/bin/google-chrome'
 CHROMEDRIVERPATH_LINUX = '/usr/local/share/chrome_driver/chromedriver.exe'
 
 _driver: webdriver.Chrome = None
@@ -84,6 +87,9 @@ def open_website(website: str, num_boards: int = 1,
         options.add_argument('--headless')
     # exit any driver that was being used before and reinitialize it
     quit_driver()
+    bin_path = CHROMEPATH_WINDOWS if IS_MS_OS else CHROMEPATH_LINUX
+    if os.path.exists(bin_path):
+        options.binary_location = bin_path
     exe_path = CHROMEDRIVERPATH_WINDOWS if IS_MS_OS else CHROMEDRIVERPATH_LINUX
     if os.path.exists(exe_path):
         _driver = webdriver.Chrome(executable_path=exe_path, options=options)

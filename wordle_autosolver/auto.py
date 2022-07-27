@@ -21,7 +21,7 @@ except ModuleNotFoundError:  # this is only here to help pytest find the module
 # used by GitHub-hosted runners
 CHROMEDRIVERPATH_WINDOWS = ('C:/SeleniumWebDrivers/ChromeDriver'
                             '/chromedriver.exe')
-CHROMEDRIVERPATH_LINUX = '/usr/local/share/chrome_driver'
+CHROMEDRIVERPATH_LINUX = '/usr/local/share/chrome_driver/chromedriver.exe'
 
 _driver: webdriver.Chrome = None
 _auto_guess_count: int = 0

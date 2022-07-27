@@ -20,13 +20,15 @@ jobs:
     - name: Install ChromeDriver for Windows
       uses: nanasess/setup-chromedriver@v1
       if: os == 'windows-latest'
-      run: chromedriver --url-base=/wd/hub &
+    - run: chromedriver --url-base=/wd/hub &
+      if: os == 'windows-latest'
     - name: Install ChromeDriver for Ubuntu
       uses: nanasess/setup-chromedriver@v1
       if: os == 'ubuntu-latest'
-      run: |
+    - run: |
         export DISPLAY=:99
         chromedriver --url-base=/wd/hub &
+      if: os == 'ubuntu-latest'
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:

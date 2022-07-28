@@ -9,12 +9,12 @@ from tqdm import tqdm
 
 try:  # pragma: no cover
     from common import GameMode
-    from common import RIGHT, CLOSE, WRONG, PROGRESS
+    from common import RIGHT, CLOSE, WRONG, PROGRESS, SYM_ALTS
     from common import get_response, filter_remaining
     from common import colored_response, count_remaining
     from common import best_guesses, set_best_guess_updated
 except ModuleNotFoundError:  # this is only here to help pytest find the module
-    from wordle_autosolver.common import GameMode
+    from wordle_autosolver.common import GameMode, SYM_ALTS
     from wordle_autosolver.common import RIGHT, CLOSE, WRONG, PROGRESS
     from wordle_autosolver.common import get_response, filter_remaining
     from wordle_autosolver.common import colored_response, count_remaining
@@ -163,6 +163,35 @@ class SessionInfo:
                 )
 
 
+def get_worst_liar_response(guess: str, answer: str, remaining: list[str]):
+    """Finds a valid liar response which results in the most remaining answers.
+
+    Args:
+        guess:
+            The word which was guessed by the player
+        answer:
+            A potential answer word to be tested
+        remaining:
+            The list of remaining possible answers
+
+    Returns:
+        The response which results in the most remaining possible answers.
+    """
+    mode = GameMode()
+    response = get_response(guess, answer, mode)
+    mode.liar = True
+    worst_response = ''
+    worst_count = 0
+    for sym_idx in range(len(response)):
+        for alt in SYM_ALTS[response[sym_idx]]:
+            response = response[:sym_idx] + alt + response[sym_idx + 1:]
+            count = count_remaining(remaining, guess, response, mode)
+            if count > worst_count:
+                worst_response = response
+                worst_count = count
+    return worst_response
+
+
 ###############################################################################
 #                    CODE FOR MANUAL AND SIMULATED INPUTS                     #
 ###############################################################################
@@ -270,10 +299,18 @@ def simulated_response(session: SessionInfo) -> list[tuple[str, int]]:
                                    session.num_boards)  # pragma: no cover
     responses = []
     for board in session.expected:
-        responses.append(
-            (get_response(session.entered[-1], simulated_answers[board],
-                          session.mode), board)
-        )
+        if session.mode.liar:
+            responses.append(
+                (get_worst_liar_response(session.entered[-1],
+                                         simulated_answers[board],
+                                         session.remaining[board]),
+                 board)
+            )
+        else:
+            responses.append(
+                (get_response(session.entered[-1], simulated_answers[board],
+                              session.mode), board)
+            )
     return responses
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Union, Optional
+from random import choice
 
 from tqdm import tqdm
 
@@ -11,6 +12,11 @@ CLOSE: str = '+'
 WRONG: str = '.'
 IS_MS_OS: bool = os.name == 'nt'
 PROGRESS: Optional[str] = '__...:::!!|' if IS_MS_OS else None
+SYM_ALTS: dict[str, list[str]] = {
+    RIGHT: [CLOSE, WRONG],
+    CLOSE: [RIGHT, WRONG],
+    WRONG: [RIGHT, CLOSE]
+}
 
 _response_data: dict = {}
 _response_data_updated: bool = False
@@ -327,21 +333,27 @@ def get_response(guess: str, answer: str, mode: Optional[GameMode] = None,
     global _response_data, _response_data_updated
     # Note: this use of memoization appears to speed up calculations by a
     #       factor of 10, but it also uses between 0.4 and 1.2GB of storage
+    response = ''
     if (use_cache and guess in _response_data
             and answer in _response_data[guess]):
-        return _response_data[guess][answer]
-    if mode is None:
-        mode = GameMode()
-    response = ''
-    if mode.master:
-        response = _get_master_response(guess, answer)
+        response = _response_data[guess][answer]
     else:
-        response = _get_easy_response(guess, answer)
-    if use_cache:
-        if guess not in _response_data:
-            _response_data[guess] = {}
-        _response_data[guess][answer] = response
-        _response_data_updated = True
+        if mode is None:
+            mode = GameMode()
+        if mode.master:
+            response = _get_master_response(guess, answer)
+        else:
+            response = _get_easy_response(guess, answer)
+        if use_cache:
+            if guess not in _response_data:
+                _response_data[guess] = {}
+            _response_data[guess][answer] = response
+            _response_data_updated = True
+    if (mode.liar):
+        sym_idx = choice(list(range(len(response))))
+        response = (response[:sym_idx]
+                    + choice(SYM_ALTS[response[sym_idx]])
+                    + response[sym_idx + 1:])
     return response
 
 
@@ -376,14 +388,18 @@ def filter_remaining(remaining: list[str], guess: str, response: str,
     if response == ''.join(RIGHT for _ in guess):
         return [guess]
     for answer in remaining:
-        this_response = get_response(guess, answer, mode, use_cache=use_cache)
         if mode.liar:
+            this_response = get_response(guess, answer, GameMode(),
+                                         use_cache=use_cache)
             # check that exactly one letter in the response is wrong
             if 1 == sum(int(this_response[n] != response[n])
                         for n in range(len(answer))):
                 filtered.append(answer)
-        elif this_response == response:
-            filtered.append(answer)
+        else:
+            this_response = get_response(guess, answer, mode,
+                                         use_cache=use_cache)
+            if this_response == response:
+                filtered.append(answer)
     return filtered
 
 
@@ -422,14 +438,18 @@ def count_remaining(remaining: list[str], guess: str, response: str,
         limit = len(remaining)
     count = 0
     for answer in remaining:
-        this_response = get_response(guess, answer, mode, use_cache=use_cache)
         if mode.liar:
+            this_response = get_response(guess, answer, GameMode(),
+                                         use_cache=use_cache)
             # check that exactly one letter in the response is wrong
             if 1 == sum(int(this_response[n] != response[n])
                         for n in range(len(answer))):
                 count += 1
-        elif this_response == response:
-            count += 1
+        else:
+            this_response = get_response(guess, answer, mode,
+                                         use_cache=use_cache)
+            if this_response == response:
+                count += 1
         if count > limit:
             return count
     return count

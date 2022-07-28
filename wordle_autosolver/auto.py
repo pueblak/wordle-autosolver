@@ -1,3 +1,4 @@
+import os
 import time
 from math import ceil, log2
 from typing import Optional
@@ -8,13 +9,22 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 try:  # pragma: no cover
-    from common import RIGHT, CLOSE, WRONG, PROGRESS, GameMode
+    from common import RIGHT, CLOSE, WRONG, PROGRESS, GameMode, IS_MS_OS
     from solver import SessionInfo
 except ModuleNotFoundError:  # this is only here to help pytest find the module
     from wordle_autosolver.common import RIGHT, CLOSE, WRONG, PROGRESS
-    from wordle_autosolver.common import GameMode
+    from wordle_autosolver.common import GameMode, IS_MS_OS
     from wordle_autosolver.solver import SessionInfo
 
+
+# Note: The following values come from the default installation locations
+# used by GitHub-hosted runners
+CHROMEPATH_WINDOWS = ('C:/Program Files (x86)/Google/Chrome/Application'
+                      '/chrome.exe')
+CHROMEDRIVERPATH_WINDOWS = ('C:/SeleniumWebDrivers/ChromeDriver'
+                            '/chromedriver.exe')
+CHROMEPATH_LINUX = '/usr/bin/google-chrome'
+CHROMEDRIVERPATH_LINUX = '/usr/local/share/chrome_driver/chromedriver.exe'
 
 _driver: webdriver.Chrome = None
 _auto_guess_count: int = 0
@@ -77,7 +87,14 @@ def open_website(website: str, num_boards: int = 1,
         options.add_argument('--headless')
     # exit any driver that was being used before and reinitialize it
     quit_driver()
-    _driver = webdriver.Chrome(options=options)
+    bin_path = CHROMEPATH_WINDOWS if IS_MS_OS else CHROMEPATH_LINUX
+    if os.path.exists(bin_path):
+        options.binary_location = bin_path
+    exe_path = CHROMEDRIVERPATH_WINDOWS if IS_MS_OS else CHROMEDRIVERPATH_LINUX
+    if os.path.exists(exe_path):
+        _driver = webdriver.Chrome(executable_path=exe_path, options=options)
+    else:
+        _driver = webdriver.Chrome(options=options)
     # alter the URL if necessary to play the correct version of the chosen game
     if 'wordzmania' in website and mode.master:
         website += 'Master'

@@ -133,7 +133,7 @@ def open_website(website: str, num_boards: int = 1,
 
 def navigate_wordle(hard: bool) -> None:
     """Navigates the Wordle website before beginning the solve."""
-    close_icon_xpath = '//*[@id="wordle-app-game"]/div[3]/div/div'
+    close_icon_xpath = '/html/body/div/div/dialog/div/button'
     close_icon = _driver.find_element(by=By.XPATH, value=close_icon_xpath)
     close_icon.click()
     time.sleep(1.5)
@@ -141,7 +141,7 @@ def navigate_wordle(hard: bool) -> None:
         _driver.find_element(value='settings-button').click()
         time.sleep(0.5)
         _driver.find_element(value='hardMode').click()
-        close_settings_xpath = '//*[@id="wordle-app-game"]/div[3]/div/div[3]'
+        close_settings_xpath = '/html/body/div/div/dialog/div/button'
         time.sleep(0.25)
         _driver.find_element(by=By.XPATH, value=close_settings_xpath).click()
         time.sleep(0.5)
@@ -165,10 +165,6 @@ def navigate_dordle(endless: bool, *, dark_mode: bool = True) -> None:
 
 def navigate_octordle(*, dark_mode: bool = True):
     """Navigates the Octordle website before beginning the solve."""
-    _driver.find_element(
-        By.XPATH, '//*[@id="cookie-consent"]/div/div[2]/button[1]'
-    ).click()
-    time.sleep(2)
     if not dark_mode:
         _driver.find_element(
             By.XPATH, '//*[@id="header"]/div[1]/a[3]'

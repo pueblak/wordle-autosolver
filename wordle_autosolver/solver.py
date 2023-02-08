@@ -361,6 +361,7 @@ def solve_wordle(session: SessionInfo,
            (session.mode.play and
             not all(x in session.entered for x in session.solved))):
         # print the currently known letters/answers and display the best guess
+        session.solve_count = len(set(session.answers) & set(session.solved))
         if session.num_boards > 1 and allow_print and not session.mode.play:
             print("\nSolved {:>2d}/{:<2d} boards: [{}]".format(
                 session.solve_count, session.num_boards,
@@ -389,7 +390,6 @@ def solve_wordle(session: SessionInfo,
         for response, board in auto_response(session):
             if all(x == RIGHT for x in response) and board in session.expected:
                 session.expected.remove(board)
-                session.solve_count += 1
             session.best[board], session.remaining[board] = _parse_response(
                 response, board, auto_response, session, allow_print)
         # recommend guessing any answers which have been found but not entered

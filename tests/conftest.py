@@ -2,8 +2,7 @@ from pytest import fixture
 from random import choice, sample, randint
 
 from wordle_autosolver.data import load_all_data
-from wordle_autosolver.solver import SessionInfo, solve_wordle
-from wordle_autosolver.auto import open_website, quit_driver
+from wordle_autosolver.solver import SessionInfo
 
 
 @fixture

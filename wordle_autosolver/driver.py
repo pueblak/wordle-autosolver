@@ -115,6 +115,9 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
     if args.clean:  # pragma: no cover
         clean_all_data()
         exit()
+    from sys import argv
+    if len(argv) == 1:
+        args = manual_args_entry(parser, args)
     lim = max(min(args.board_limit, 500), args.num)
     mode = GameMode()
     if args.hard:
@@ -129,6 +132,105 @@ def parse_command_line_args() -> tuple[int, bool, bool, bool, str, int, bool,
         mode.endless = True
     return (args.num, lim, mode, args.site, args.nyt, args.start, args.sim,
             args.stro, args.best, args.quiet, not args.light)
+
+
+def manual_args_entry(parser, args):
+    DEFAULT_CODE = "--num 1"
+    start_code = DEFAULT_CODE
+    response = input(
+        "\n\nWelcome to Wordle Autosolver! If you have a\nstart code, "
+        "please enter that now. If you do\nnot have a start code, please "
+        "select whether\nyou would like to PLAY a new Wordle game, SOLVE\n"
+        "a Wordle game, or SIMULATE some Wordle games?\n\nEnter 'play', "
+        "'solve', or 'simulate'.\n>>> ")
+    if response.strip().lower() == "play":
+        start_code = "--play"
+        args.play = True
+    elif response.strip().lower() == "simulate":
+        response = input(
+            "How many total simulations would you like to\nrun?\n>>> ")
+        while args.sim == 0:
+            try:
+                value = int(response.strip())
+                if 1 <= value:
+                    args.sim = value
+            except ValueError:
+                pass
+            if args.num == 0:
+                response = ("\nPlease enter a number greater than 0\n>>> ")
+        start_code = "--sim " + response.strip()
+    elif response.strip().lower() != "solve":
+        return parser.parse_args(response.strip().lower().split())
+    # Prompt user to select number of simultaneous games
+    args.num = 0
+    response = input("\nHow many games are being {:s}ed at once?"
+                     "\n(default: 1)\n>>> ".format("play" if args.play else (
+                         "simulat" if args.sim else "solv")))
+    while args.num == 0:
+        try:
+            value = int(response.strip())
+            if 1 <= value <= 500:
+                args.num = value
+        except ValueError:
+            pass
+        if args.num == 0:
+            response = ("\nPlease enter a number between "
+                        "1 and 500\n(inclusive)\n>>> ")
+    if args.num > 1:
+        code = "--num " + str(args.num)
+        if start_code == DEFAULT_CODE:
+            start_code = code
+        else:
+            start_code += " " + code
+    # Prompt user to select a word list to use
+    response = input(
+        "\nWould you like to only consider words in the\n"
+        "Official Wordle Word List curated by the New\n"
+        "York Times?\nThis will significantly improve solve times for\n"
+        "NYT Wordle, but it may fail to find a solution\n"
+        "on other websites.\n\nEnter 'Y' for yes or 'n' for no.\n>>> ")
+    while response.strip().lower().split()[0] not in ("y", "n"):
+        response = input("Please enter 'Y' for yes or 'n' for no.\n>>> ")
+    if response.strip().lower().split()[0] == "y":
+        args.nyt = True
+    # Prompt the user to select any unique game modes
+    response = input(
+        "\nAre you playing any unique game modes?\n\nThis program supports "
+        "Hard Mode on the classic\nWordle site, Master Mode on Wordzy's site, "
+        "and\nthe Fibble variant of Wordle (aka Liar Mode).\n\nEnter 'hard', "
+        "'master', 'liar', or 'none'.\n>>> ")
+    while response.strip().lower() not in ("hard", "master", "liar", "none"):
+        response = input(
+            "Please enter 'hard', 'master', 'liar', or 'none'.\n>>> ")
+    code = ""
+    response = response.strip().lower()
+    if response == "hard":
+        args.hard = True
+        code = "--hard"
+    elif response == "master":
+        args.master = True
+        code = "--master"
+    elif response == "liar":
+        args.liar = True
+        code = "--liar"
+    if code != "":
+        if start_code == DEFAULT_CODE:
+            start_code = code
+        else:
+            start_code += " " + code
+    # Prompt the user to enter any preferred starting words
+    response = input(
+        "\nAre there any words you want to guess at the\nstart of every game?"
+        "\n\nList all words in order, seperated by spaces.\nLeave it blank and"
+        " press ENTER if you want to\nskip this option.\n>>> ")
+    args.start = response.split()
+    if len(args.start) > 0:
+        start_code += "--start " + response
+    # Give the user the generated start code
+    print(("\nIf you would like to run this program again\nwith the same "
+           "parameters, you can enter the\nfollowing start code to skip "
+           "this step next\ntime:\n\n    {:s}\n\n").format(start_code))
+    return args
 
 
 def main() -> None:  # pragma: no cover
@@ -258,10 +360,9 @@ def main() -> None:  # pragma: no cover
             print()
             print(session)
             exit(1)
-        solution = session.solved, session.entered
         if quiet:
-            sol = solution[0]
-            score = n_games + 5 - len(solution[1]) - int(site == 'wordzy')
+            sol = session.solved
+            score = n_games + 5 - len(session.entered) - int(site == 'wordzy')
             print('\n  SOLUTION={}\n     SCORE={}\n'.format(sol, score))
         if n_games == lim:
             break
@@ -314,7 +415,7 @@ def main() -> None:  # pragma: no cover
             ).click()
             time.sleep(2)
         if stro:
-            start = solution[0]
+            start = session.solved
     save_all_data(mode.hard, mode.master, mode.liar, get_best_guess_updated(),
                   saved_best, get_response_data_updated(), get_response_data(),
                   nyt, not quiet)

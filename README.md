@@ -3,7 +3,7 @@
 
 ![Python](https://img.shields.io/badge/python-3670A0?style=style-plastic-03650f&logo=python&logoColor=ffdd54) ![Selenium](https://img.shields.io/badge/-selenium-%43B02A?style=style-plastic-03650f&logo=selenium&logoColor=white) ![Google Chrome](https://img.shields.io/badge/Google%20Chrome-4285F4?style=style-plastic-03650f&logo=GoogleChrome&logoColor=white) ![Tests](https://github.com/pueblak/wordle-autosolver/actions/workflows/tests.yml/badge.svg)
 
-![Wordle Demo](img/wordle-demo.gif)
+![Initial Demo](img/overall-demo.gif)
 
 ## Setup
 You may download and install this package using pip
@@ -16,14 +16,14 @@ Otherwise, use [this link](https://chromedriver.chromium.org/getting-started) to
 
 Alternatively, if you do not wish to use the auto-solve feature, you may download [`wordle-autosolver-lite`](https://pypi.org/project/wordle-autosolver-lite/) for the version without selenium.
 
-![Quordle Demo](img/quordle-demo.gif)
+![Wordle Demo](img/wordle-demo.gif)
 
 ## Usage
 Use this module to solve Wordle and other similar puzzles. Default behavior requires the user to interact with the program through the console. This program will use the user's guess and the game's response to filter a list of possible answers. It will then check every possible guess the user could make next, and check the size of the answer list after each possible response. The program will then recommend the guesses which have the smallest worst-case response. The "-auto" flag allows the user to automate the entry of guesses and responses by connecting to websites and interacting with them using chromedriver + selenium. Current supported websites include: [Wordle](www.nytimes.com/games/wordle/index.html), [Dordle](zaratustra.itch.io/dordle), [Quordle](www.quordle.com), [Octordle](octordle.com), [Sedecordle](www.sedecordle.com), [Duotrigordle](duotrigordle.com), [64ordle](64ordle.au), [Nordle](www.nordle.us), [Wordzy](wordzmania.com/Wordzy), and [Fibble](fibble.xyz).
 ```
-wordle_autosolver [-h] [--num N] [--nyt | --hard | --master | --liar] [--best] [--quiet]
-                  [--play | --auto WEBSITE | --sim MAX_SIMS] [--start WORD [WORD ...]]
-                  [--continue LIMIT | --endless | --challenge] [--light] [--clean]
+python wordle_autosolver [-h] [--num N] [--nyt | --hard | --master | --liar] [--best] [--quiet]
+                         [--play | --auto WEBSITE | --sim MAX_SIMS] [--start WORD [WORD ...]]
+                         [--continue LIMIT | --endless | --challenge] [--light] [--clean]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -63,11 +63,11 @@ optional arguments:
                         execute any other commands when this flag is set)
 ```
 
-![Fibble Demo](img/fibble-demo.gif)
+![Quordle Demo](img/quordle-demo.gif)
 
 ## Example Console Output
 ```
-$ wordle_autosolver --auto wordle --num 4 --start lucky words
+$ python wordle_autosolver --auto wordle --num 4 --start lucky words
 Loading precalculated data...
 Finished loading.
 
@@ -164,3 +164,5 @@ Saving all newly discovered data...
 Save complete.
 PRESS ENTER TO EXIT
 ```
+
+![Fibble Demo](img/fibble-demo.gif)
